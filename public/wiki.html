@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>VectorPal 手册</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+
+<article id="start" data-title="三分钟上手" data-icon="🚀">
+<h4>三件事，先确认</h4>
+<ol>
+  <li><b>控制台起着</b>：页头左边那个绿点写着「在线」。</li>
+  <li><b>机器人在线</b>：页头第二个绿点写着「机器人在线」。它要是关机或者在重启，这里是灰的 —— 等它自己回来，不要反复点。</li>
+  <li><b>把它从充电仓上抱下来</b>：站在仓上时，固件会忽略一切外部马达指令（引擎日志里那句 <code>external motor commands are not allowed</code>），动画、抬头、走路全都不动，只有说话和换眼睛能用。</li>
+</ol>
+
+<h4>先玩这三个</h4>
+<ul>
+  <li>「玩 · 说 · 动作」页 → 打个招呼；</li>
+  <li>动作库里搜 <code>greeting</code>，挑一个点一下；</li>
+  <li>「编程工坊」→ 拖两块积木 → 运行。</li>
+</ul>
+
+<h4>页面结构</h4>
+<table>
+  <tr><th>页签</th><th>放什么</th></tr>
+  <tr><td>总览</td><td>实时状态、快捷操作、事件流</td></tr>
+  <tr><td>玩 · 说 · 动作</td><td>说话、动作库、眼睛、看世界、语音助手</td></tr>
+  <tr><td>编程工坊</td><td>传感器、点按积木、Blockly、自动反应、作品管理</td></tr>
+  <tr><td>记录</td><td>每天跟它做了什么（给家长看的）</td></tr>
+  <tr><td>设置</td><td>语言、时区、音量、接入机器人、日志、原始 RPC</td></tr>
+</table>
+</article>
+
+<article id="capability" data-title="它能做什么、做不到什么" data-icon="🧭">
+<p>这一台是 Anki Vector 2.0，固件已经被解锁到 <b>3.0.2.35d</b>（OSKR/CFW）。下面这张表是实测出来的边界，不是说明书抄的。</p>
+<table>
+  <tr><th>能力</th><th>行不行</th><th>怎么走</th></tr>
+  <tr><td>播放动画（1208 个）</td><td>✅</td><td><code>POST /api/robot/animation</code>，先接管行为控制</td></tr>
+  <tr><td>触发器（479 个，一组动画的入口）</td><td>✅</td><td><code>POST /api/robot/animation-trigger</code></td></tr>
+  <tr><td>抬头低头 / 升降</td><td>✅</td><td><code>MoveHead</code> / <code>MoveLift</code>（只吃速度，闭环自己做）</td></tr>
+  <tr><td>前进后退 / 转向</td><td>✅</td><td><code>DriveWheels</code> + 陀螺仪闭环</td></tr>
+  <tr><td>眼睛颜色</td><td>✅</td><td><code>SetEyeColor</code>，它自主动作时会被盖掉</td></tr>
+  <tr><td>拍照 / 视频流</td><td>✅</td><td>640×360 JPEG；视频流约 2.8 fps</td></tr>
+  <tr><td>触摸、抱起、情绪、悬崖</td><td>✅</td><td>事件流实时推（约 14Hz）</td></tr>
+  <tr><td>让它自己说话（固件 TTS）</td><td>❌</td><td><code>SayText</code> 恒返回 ERR 13；只能本机合成 PCM 推流</td></tr>
+  <tr><td>走到指定坐标（GoToPose）</td><td>❌</td><td>3.x 回 <code>ERR 3 Invalid Action tag_id</code>，所有带动作标签的接口都废了</td></tr>
+  <tr><td>自己回充电仓</td><td>⚠️</td><td>试过 120 秒没成功，坐标还会突然归零 —— 别依赖它</td></tr>
+  <tr><td>换唤醒词</td><td>❌</td><td>「Hey Vector」写死在固件里，改不了（可以改成按键唤醒）</td></tr>
+</table>
+<p class="note">一句话：<b>能精确控制的只有「轮子、头、升降、眼睛、动画、声音流」这六样</b>，其余的高层行为得靠 AppIntent 借固件自己的动作库。</p>
+</article>
+
+<article id="anims" data-title="动作库（1208 个动画）" data-icon="🕺" data-dynamic="anims">
+<p>清单来自机器人自己身上的 <code>anim_manifest.json</code>，一共 <b id="animCount">1208</b> 个名字，每个都带时长。动画就是一段预设的关节轨迹 + 表情 + 音效，播完自己结束。</p>
+<h4>名字的规律</h4>
+<ul>
+  <li><code>anim_greeting_*</code> 打招呼、<code>anim_dance*</code> 跳舞、<code>anim_blackjack_*</code> 21 点牌局</li>
+  <li><code>anim_rtmotion_*</code> / <code>anim_rtsound_*</code> 被摸到、听到声音的反应</li>
+  <li><code>anim_communication_*</code> 表达类（点头、摇头、cantdothat）</li>
+  <li><code>anim_explorer_*</code> 四处看、<code>anim_loco_*</code> 走路的起停动作</li>
+</ul>
+<h4>为什么有时候点了没反应</h4>
+<ol>
+  <li><b>没接管控制</b>：它正在自主动作时，动画请求会被引擎直接丢掉（日志里连请求都不出现）。本程序已经自动先接管，点之前不用管。</li>
+  <li><b>名字不存在</b>：引擎日志会写 <code>AnimationComponent.PlayAnimByName.AnimNotFound</code>。</li>
+  <li><b>站在充电仓上</b>：所有马达指令被忽略。</li>
+</ol>
+<div class="dyn" id="dynAnims"><div class="empty">正在读动画清单…</div></div>
+</article>
+
+<article id="triggers" data-title="触发器（479 个行为入口）" data-icon="🎬" data-dynamic="triggers">
+<p>触发器不是单个动画，而是<b>一组动画的入口</b>：固件按当时的情绪、朝向自己挑一段播。比如 <code>BlackJack_Deal</code> 会走「发牌」那一整套。</p>
+<p class="note">不是每个触发器在这台机器上都有映射；没有映射的会落成 <code>anim_communication_cantdothat_0x</code>（就是那个「摇头说不行」）。试一下就知道。</p>
+<div class="dyn" id="dynTriggers"><div class="empty">正在读触发器清单…</div></div>
+</article>
+
+<article id="api" data-title="函数库（接口手册）" data-icon="🔌">
+<p>控制台自己就是一层 HTTP API，跑在 <code>http://&lt;本机IP&gt;:8090</code>。局域网访问要带 PIN（设置页能看到），本机访问不用。下面每一行都可以直接点「试」。</p>
+
+<h4>机器人动作</h4>
+<table>
+  <tr><th>接口</th><th>参数</th><th>说明</th><th></th></tr>
+  <tr><td><code>POST /api/robot/animation</code></td><td><code>{"name":"anim_greeting_happy_03","loops":1}</code></td><td>播一个动画（自动接管控制、按清单时长等它播完）</td><td><button class="btn tiny" data-run="animation" data-arg='{"name":"anim_greeting_happy_03"}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/animation-trigger</code></td><td><code>{"name":"BlackJack_Deal"}</code></td><td>播一组行为（触发器）</td><td><button class="btn tiny" data-run="animation-trigger" data-arg='{"name":"BlackJack_Deal"}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/head</code></td><td><code>{"angle":0.4}</code> 弧度，-0.6~0.6</td><td>抬头低头，闭环到位</td><td><button class="btn tiny" data-run="head" data-arg='{"angle":0.4}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/lift</code></td><td><code>{"height":60}</code> 毫米，32~92</td><td>升降</td><td><button class="btn tiny" data-run="lift" data-arg='{"height":60}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/drive-for</code></td><td><code>{"left":120,"right":120,"ms":600}</code></td><td>两轮速度驱动一段时间（mm/s）</td><td><button class="btn tiny" data-run="drive-for" data-arg='{"left":120,"right":120,"ms":600}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/eye</code></td><td><code>{"hue":0.5,"saturation":1,"light":0.5}</code></td><td>眼睛颜色（色相 0~1）</td><td><button class="btn tiny" data-run="eye" data-arg='{"hue":0.5}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/stop</code></td><td><code>{}</code></td><td>急停：停轮子、停动画、放开控制</td><td><button class="btn tiny" data-run="stop" data-arg='{}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/speak</code></td><td><code>{"text":"你好呀","voice":"Microsoft Huihui Desktop","rate":0}</code></td><td>本机合成语音再推给机器人播</td><td><button class="btn tiny" data-run="speak" data-arg='{"text":"你好呀，我是 Vector"}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/photo</code></td><td><code>{}</code></td><td>拍一张存进相册</td><td><button class="btn tiny" data-run="photo" data-arg='{}'>试</button></td></tr>
+  <tr><td><code>POST /api/robot/intent</code></td><td><code>{"intent":"intent_imperative_lookatme"}</code></td><td>借固件的高层行为（绕过动作标签限制）</td><td><button class="btn tiny" data-run="intent" data-arg='{"intent":"intent_imperative_lookatme"}'>试</button></td></tr>
+  <tr><td><code>GET /api/robot/image</code></td><td>—</td><td>现拍一张，直接返回 JPEG</td><td></td></tr>
+  <tr><td><code>GET /api/robot/animations</code></td><td>—</td><td>1208 个动画名 + 时长表</td><td></td></tr>
+  <tr><td><code>GET /api/robot/triggers</code></td><td>—</td><td>479 个触发器名（加 <code>?refresh=1</code> 现场重读）</td><td></td></tr>
+  <tr><td><code>GET /api/robot/voices</code></td><td>—</td><td>本机可用的中文/英文音色</td><td></td></tr>
+</table>
+
+<h4>状态与事件</h4>
+<table>
+  <tr><th>接口</th><th>说明</th></tr>
+  <tr><td><code>GET /api/state</code></td><td>当前姿态、头部、升降、电量、触摸、加速度、陀螺仪、状态位</td></tr>
+  <tr><td><code>GET /api/status</code></td><td>连接情况、固件版本、错误</td></tr>
+  <tr><td><code>GET /api/events</code></td><td>SSE 实时推送：state / robot / touch / pickedUp / charger / heard / stim</td></tr>
+  <tr><td><code>GET /api/health</code></td><td>给守护进程看的存活检查</td></tr>
+</table>
+
+<h4>编程、语音、记录</h4>
+<table>
+  <tr><th>接口</th><th>参数</th><th>说明</th></tr>
+  <tr><td><code>POST /api/program/run</code></td><td><code>{"steps":[…],"loops":1,"control":"on"}</code></td><td>按步骤执行，跑完返回每步结果</td></tr>
+  <tr><td><code>POST /api/program/stop</code></td><td><code>{}</code></td><td>立刻停下并让程序退出</td></tr>
+  <tr><td><code>GET /api/voice/state</code> / <code>POST /api/voice/trigger</code></td><td><code>{"op":"add","phrase":"你好","steps":[…]}</code></td><td>自定义「说什么 → 做什么」</td></tr>
+  <tr><td><code>POST /api/voice/test</code></td><td><code>{"text":"跳个舞"}</code></td><td>不经过麦克风，直接试匹配</td></tr>
+  <tr><td><code>GET /api/activity?days=7</code></td><td>—</td><td>互动记录</td></tr>
+  <tr><td><code>POST /api/rules</code></td><td><code>{"items":[{"event":"touch","steps":[…]}]}</code></td><td>「当……就……」自动反应</td></tr>
+  <tr><td><code>POST /api/robot/rpc</code></td><td><code>{"method":"VersionState","req":{},"timeoutMs":8000}</code></td><td>逃生舱：直接调任意 gRPC 方法</td></tr>
+</table>
+
+<h4>在别的程序里调用</h4>
+<pre>// 浏览器 / Node 都行
+await fetch('http://192.168.1.21:8090/api/robot/animation', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'x-pin': '123456' },
+  body: JSON.stringify({ name: 'anim_greeting_happy_03' })
+});</pre>
+</article>
+
+<article id="blocks" data-title="编程积木手册" data-icon="🧩">
+<p>积木最终都变成一段步骤数组，交给 <code>/api/program/run</code> 一步步执行。下面是每一种积木的真实参数和坑。</p>
+<table>
+  <tr><th>积木</th><th>参数</th><th>说明</th></tr>
+  <tr><td>说话</td><td><code>text</code>、<code>voice</code>、<code>rate</code></td><td>本机合成再推流；一字一顿是因为推流节奏，不是它卡了</td></tr>
+  <tr><td>播放动画</td><td><code>name</code>、<code>loops</code></td><td>会按清单时长等它播完，长动画最多等 20 秒</td></tr>
+  <tr><td>前进 / 后退</td><td><code>mm</code>(默认 100)、<code>speed</code>(默认 120 mm/s)</td><td>按里程换算时间，误差约 ±2%</td></tr>
+  <tr><td>转向</td><td><code>deg</code>（正数向左、负数向右）、<code>speed</code></td><td>按陀螺仪闭环，90° 误差约 ±0.8%</td></tr>
+  <tr><td>抬头</td><td><code>angle</code> 弧度</td><td>-0.6 低头到底，0.6 抬头到底</td></tr>
+  <tr><td>升降</td><td><code>height</code> 毫米</td><td>32 最低，92 最高</td></tr>
+  <tr><td>换眼睛</td><td><code>hue</code>、<code>saturation</code>、<code>light</code></td><td>它做自主动作时会被盖掉，正常</td></tr>
+  <tr><td>拍张照</td><td>—</td><td>存进相册，记录里能看到</td></tr>
+  <tr><td>意图</td><td><code>name</code>，如 <code>intent_imperative_come</code></td><td>借固件自己的高层行为，比自己拼动作自然</td></tr>
+  <tr><td>等</td><td><code>ms</code></td><td>最长 10 秒；步与步之间建议留 300ms 以上</td></tr>
+  <tr><td>循环</td><td><code>loops</code> 1~20</td><td>整个程序从头再跑一遍</td></tr>
+</table>
+<h4>写程序的四个坑</h4>
+<ol>
+  <li><b>一定要从充电仓下来</b>，否则除了说话全都不动。</li>
+  <li><b>别指望它回到起点</b>：轮子打滑就偏了，导航不可靠；要定位就拍张照看。</li>
+  <li><b>长程序要能停</b>：「停下」按钮会把当前这一步也掐掉。</li>
+  <li><b>说话和动画别叠着来</b>：声音会被动画音效盖住，先说完再动。</li>
+</ol>
+</article>
+
+<article id="voice" data-title="语音那条链路" data-icon="🎤">
+<h4>它怎么听见你</h4>
+<pre>麦克风 → 固件判断唤醒（Hey Vector 或按键）→ 录 6 秒 → OGG_OPUS 16k
+      → 控制台 chipper.StreamingIntentGraph → 本地 STT（sherpa-onnx 中文）
+      → 匹配你写的触发词 → 执行积木步骤 → 本机合成语音推回去</pre>
+<h4>唤醒的两种方式</h4>
+<ul>
+  <li><b>说「Hey Vector」</b>：固件写死的，改不了。麦克风老化时很难喊醒。</li>
+  <li><b>按头顶的按钮</b>：设置页勾上「按键唤醒」就写到机器人身上了（<code>button_wakeword=1</code>），掉电也不会丢。</li>
+</ul>
+<h4>为什么有时候听不准</h4>
+<ul>
+  <li>只有 6 秒窗口，说长了后面被截断；</li>
+  <li>模型是 14M 的流式中文模型，离得远、有电视声就容易听成别的字（实测「你好」被听成过「利」）；</li>
+  <li>建议 30 厘米内、慢一点、一次说一件事。</li>
+</ul>
+<h4>关于那个「网络叹号」</h4>
+<p class="note">那是固件自带的 <code>anim_nocloud_icon_01</code>，意思是「云端没给我答复」。我们这套链路里它出现在<b>唤醒之后云端没回话</b>的那一瞬，不影响后面的动作执行；如果你看到它并且动作也没做，先看设置页的 pod 日志里有没有 <code>StreamingIntentGraph</code> 记录。</p>
+<h4>加一条自己的口令</h4>
+<p>「玩 · 说 · 动作」页 → 语音助手 → 写一句孩子会说的话 + 选一个动作 → 添加。加完在「试一句」里输入同样的字就能验证匹配，不用喊。</p>
+</article>
+
+<article id="trouble" data-title="报错对照表" data-icon="🩺">
+<table>
+  <tr><th>页面上的话</th><th>真正的原因</th><th>怎么办</th></tr>
+  <tr><td>它现在站在充电仓上，固件会忽略所有外部动作指令…</td><td>在仓上时马达被锁</td><td>抱下来，或点「让它下充电仓」</td></tr>
+  <tr><td>它正在忙上一个动作，等一两秒再点</td><td>动作互斥，上一件事还没结束</td><td>等它做完；急就点急停</td></tr>
+  <tr><td>机器人没反应（可能关机了或在重启），等它连上再试</td><td>3 秒内事件流没更新</td><td>看页头徽章；它自己会重连</td></tr>
+  <tr><td>没做成：BehaviorControl: no grant response</td><td>没抢到行为控制（自主动作占着）</td><td>再点一次，程序会自动重试</td></tr>
+  <tr><td>引擎日志 AnimNotFound</td><td>动画名不在 manifest 里</td><td>在动作库里搜正确的名字</td></tr>
+  <tr><td>引擎日志 InvalidAnimTrigger</td><td>触发器在这台机器上没有映射</td><td>换个触发器，或直接用动画</td></tr>
+  <tr><td>401 / 要 PIN</td><td>局域网访问控制台</td><td>输入设置页里那个 6 位 PIN</td></tr>
+  <tr><td>ERR 3 Invalid Action tag_id</td><td>用了带动作标签的旧接口（GoToPose 等）</td><td>改用轮子/头/升降自己闭环</td></tr>
+</table>
+</article>
+
+<article id="hardware" data-title="硬件底线（实测）" data-icon="🔋">
+<ul>
+  <li><b>电池已经老化</b>：连续跑动作十几分钟就可能掉电停机，测试时尽量插着充电线。</li>
+  <li><b>只能有一条 SDK 会话</b>：控制台连着的时候，另开脚本连它会得到 <code>401</code>。要外部调试就走 <code>/api/robot/rpc</code>。</li>
+  <li><b>精度</b>：前进/后退 ±2%，转向 90° ±0.8%（陀螺仪闭环 + 0.28 秒刹车提前量）。</li>
+  <li><b>回仓不可靠</b>：试过 120 秒没成功，坐标还会突然归零 —— 需要充电就手动放上去。</li>
+  <li><b>它的时钟和时区写在它自己身上</b>（设置页改），掉电不丢。</li>
+  <li><b>机器人在 192.168.1.254</b>，控制台在 192.168.1.21，两个 DHCP 保留地址，重启路由器后可能会变。</li>
+</ul>
+</article>
+
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "httpPort": 80,
+  "grpcPort": 443,
+  "appProtoPort": 8084,
+  "cert443": "escapepod",
+  "cert8084": "ddl-ep",
+  "dataDir": "data",
+  "logDir": "logs",
+  "apiPort": 8090,
+  "apiHost": "0.0.0.0"
+}

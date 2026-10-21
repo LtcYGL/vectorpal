@@ -1,0 +1,63 @@
+name: Release
+
+# 打一个 v 开头的 tag 就会自动构建 Windows 便携包并挂到 Release 上：
+#   git tag v1.0.0 && git push origin v1.0.0
+# 也可以在 Actions 页面手动 Run workflow，只出一个可下载的构建产物（不发 Release）。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 装 Node 22（构建用；包里另外带一份 node.exe）
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 安装运行时依赖
+        run: npm ci --omit=dev --ignore-scripts
+
+      - name: 下载中文语音模型（约 25MB）
+        run: npm run model
+
+      - name: 打便携包
+        run: node scripts/build-portable.mjs
+
+      - name: 留一份构建产物（手动跑时也能下载）
+        uses: actions/upload-artifact@v4
+        with:
+          name: vectorpal-win-x64
+          path: dist/vectorpal-*-win-x64.zip
+          retention-days: 7
+
+      - name: 发 Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/vectorpal-*-win-x64.zip
+          draft: false
+          prerelease: false
+          body: |
+            **解压即用（Windows 10/11 x64）**
+
+            1. 下载下面的 `vectorpal-*-win-x64.zip`，解压到任意目录（路径别太深、别放 OneDrive 同步盘）
+            2. 双击 `start.bat` —— 它在后台起 pod，8 秒后自动打开控制台
+            3. 进「设置 → 接入机器人（配对）」，填机器人 IP 和 SSH 私钥，等两三分钟
+
+            包里自带 node 运行时、依赖和中文语音模型，不需要另外装 Node。
+            首次运行 Windows 会弹防火墙授权，要允许（80/443/8084/5353）。
+            机器人必须是刷过 OSKR/WireOS 的解锁固件，且你手上有它的 SSH 私钥。
+
+            只想看代码、自己装依赖的话，用源码包：`npm ci && npm run model && npm start`。

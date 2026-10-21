@@ -1,0 +1,28 @@
+# 依赖与本地运行产物
+node_modules/
+logs/
+models/
+dist/
+*.log
+*.pid
+
+# 本机运行时数据（配对后程序自己生成：机器人信息、jdocs、口令、相册、互动记录）
+data/
+
+# 证书：仓库只带 8084 用的 DDL 证书；自签证与机器人证书都是本机生成的
+certs/*
+!certs/ddl-ep.crt
+!certs/ddl-ep.key
+
+# 开发期的临时脚本（写死了本机绝对路径，不进仓库）
+tools/
+
+# 开发记录（含这台机器人的 GUID/ESN，不进公开仓库）
+PROGRESS.md
+
+# 系统与编辑器
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

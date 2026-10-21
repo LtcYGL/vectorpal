@@ -1,0 +1,27 @@
+{
+  "name": "vectorpal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VectorPal — 自带云端的 Anki Vector 控制台（自部署 pod + 管理界面 + 中文语音 + 积木编程）",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/pod/main.ts",
+    "pod": "node src/pod/main.ts",
+    "keepalive": "node keepalive.mjs",
+    "model": "node scripts/fetch-model.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "blockly": "^13.4.0"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.6",
+    "@grpc/proto-loader": "^0.8.1",
+    "multicast-dns": "^7.2.5",
+    "opusscript": "^0.1.1",
+    "sherpa-onnx-node": "^1.13.8"
+  }
+}

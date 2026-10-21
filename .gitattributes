@@ -1,0 +1,12 @@
+# 统一用 LF 存进仓库：机器人上的安装脚本会被原样送过去执行，CRLF 会让 bash 报错
+* text=auto eol=lf
+*.sh text eol=lf
+*.vbs text eol=crlf
+*.crt -text
+*.key -text
+*.onnx -text
+*.jpg -text
+*.png -text
+*.mp3 -text
+*.cur -text
+*.gif -text

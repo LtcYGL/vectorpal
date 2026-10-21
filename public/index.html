@@ -1,0 +1,1453 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VectorPal · 小机器人控制台</title>
+<style>
+:root{
+  --bg:#0e1116; --bg2:#161b22; --bg3:#1f2630; --line:#2a3340;
+  --fg:#e6edf3; --dim:#8b98a5; --acc:#4ade80; --acc2:#38bdf8; --warn:#fbbf24; --err:#f87171;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:14px 22px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:9}
+header h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.5px}
+header h1 span{color:var(--acc)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--err);display:inline-block;margin-right:6px;vertical-align:middle}
+.dot.on{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.badge{font-size:12px;color:var(--dim);padding:3px 9px;background:var(--bg3);border-radius:999px;border:1px solid var(--line)}
+nav{display:flex;gap:6px;padding:10px 18px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+nav button{background:transparent;border:1px solid transparent;color:var(--dim);padding:7px 15px;border-radius:10px;cursor:pointer;font-size:14px}
+nav button:hover{color:var(--fg);background:var(--bg3)}
+nav button.active{background:var(--bg3);color:var(--fg);border-color:var(--line)}
+main{padding:18px;max-width:1560px;margin:0 auto;column-width:370px;column-gap:12px}
+section{display:none;animation:fade .18s ease;min-width:0;break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid}
+section.active{display:block;margin:0 0 12px}
+section.wide{column-span:all;-webkit-column-span:all}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:0;min-width:0}
+.card + .card{margin-top:12px}
+.card h3{margin:0 0 12px;font-size:14px;color:var(--dim);font-weight:600;letter-spacing:.4px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.cloudwarn{margin:0 0 12px;column-span:all;-webkit-column-span:all;padding:13px 16px;border-radius:12px;border:1px solid #a16207;background:#2a2004;color:#fde68a;font-size:13px;line-height:1.7}
+.stat{background:var(--bg3);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.stat .k{font-size:12px;color:var(--dim)}
+.stat .v{font-size:23px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:13px;color:var(--dim);font-weight:400}
+button.btn{background:var(--bg3);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer;font-size:14px;transition:.15s}
+button.btn:hover{border-color:var(--acc2);color:#fff}
+button.btn:active{transform:scale(.98)}
+button.btn.primary{background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:#04210f;font-weight:600}
+button.btn.ghost{background:transparent}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input[type=text],input[type=number],textarea,select{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;width:100%}
+textarea{resize:vertical;min-height:80px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--acc2)}
+label.sm{font-size:12px;color:var(--dim);display:block;margin-bottom:5px}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.chip{background:var(--bg3);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:13px;cursor:pointer;color:var(--dim)}
+.chip:hover{color:var(--fg);border-color:var(--acc2)}
+.list{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.list div{padding:8px 13px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px;font-family:ui-monospace,Consolas,monospace}
+.list div:hover{background:var(--bg3);color:var(--acc)}
+.list div:last-child{border-bottom:none}
+.log{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--dim)}
+.log b{color:var(--acc)}
+canvas{width:100%;height:170px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.steps{border:1px solid var(--line);border-radius:10px;min-height:60px}
+.step{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.step:last-child{border-bottom:none}
+.step .n{color:var(--dim);font-family:monospace;width:22px}
+.step .t{flex:1}
+.step button{background:none;border:none;color:var(--err);cursor:pointer;font-size:15px}
+.empty{padding:18px;text-align:center;color:var(--dim);font-size:13px}
+.muted{color:var(--dim);font-size:13px}
+#snap{width:100%;min-height:200px;object-fit:contain;border-radius:12px;border:1px solid var(--line);background:#000;display:block}
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ph-item{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;cursor:zoom-in}
+.ph-item img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-item .ph-del{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:13px;line-height:24px;padding:0;opacity:0;transition:opacity .15s}
+.ph-item:hover .ph-del{opacity:1}
+.ph-empty{color:var(--dim);font-size:13px;padding:14px 0}
+.preview{height:56px;border-radius:12px;border:1px solid var(--line);transition:.2s}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:11px 20px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+/* 手册：左目录 + 右正文，正文按块排，不占一页一栏 */
+main[data-tab="wiki"]{column-count:1}
+.wikibar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.wikibar input{flex:1;min-width:200px;max-width:520px}
+.wikigrid{display:grid;grid-template-columns:214px minmax(0,1fr);gap:14px;align-items:start}
+@media(max-width:820px){.wikigrid{grid-template-columns:1fr}}
+.wikiside{position:sticky;top:62px;display:flex;flex-direction:column;gap:3px;max-height:calc(100vh - 86px);overflow:auto}
+.wikiside button{text-align:left;background:transparent;border:1px solid transparent;border-radius:9px;padding:8px 10px;color:var(--dim);cursor:pointer;font-size:13px;display:flex;gap:8px;align-items:center}
+.wikiside button i{font-style:normal}
+.wikiside button span{flex:1}
+.wikiside button em{font-style:normal;font-size:11px;color:var(--acc2)}
+.wikiside button:hover{background:var(--bg3);color:var(--fg)}
+.wikiside button.active{background:var(--bg3);border-color:var(--line);color:var(--fg)}
+.wikibody{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;min-height:320px}
+.wikibody .wtitle{margin:0 0 14px;font-size:18px;display:flex;gap:9px;align-items:center}
+.wikibody h4{margin:18px 0 8px;font-size:14px;color:var(--acc2)}
+.wikibody h4:first-of-type{margin-top:2px}
+.wikibody p{margin:0 0 10px;font-size:14px;line-height:1.78}
+.wikibody ul,.wikibody ol{margin:0 0 12px;padding-left:22px;font-size:14px;line-height:1.8}
+.wikibody li{margin-bottom:3px}
+.wikibody table{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:13px}
+.wikibody th,.wikibody td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;line-height:1.6}
+.wikibody th{color:var(--dim);font-weight:600;font-size:12px}
+.wikibody tr:last-child td{border-bottom:none}
+.wikibody code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 5px;color:var(--acc)}
+.wikibody pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;font-size:12.5px;line-height:1.7;color:var(--dim);margin:0 0 14px;font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap}
+.wikibody .note{background:var(--bg3);border-left:3px solid var(--warn);border-radius:0 8px 8px 0;padding:10px 12px;color:var(--dim);font-size:13.5px}
+button.btn.tiny{padding:4px 10px;font-size:12px;border-radius:8px}
+.dyn{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.dynload{color:var(--dim);font-size:13px;padding:10px 0}
+.dyngrid{display:flex;flex-wrap:wrap;gap:6px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg)}
+.dyngrid button{background:var(--bg3);border:1px solid var(--line);border-radius:7px;color:var(--fg);font-size:12px;padding:5px 9px;cursor:pointer;font-family:ui-monospace,Consolas,monospace}
+.dyngrid button:hover{border-color:var(--acc2);color:#fff}
+.dyngrid button:disabled{opacity:.4;cursor:wait}
+main[data-tab="play"]{column-count:3}
+main[data-tab="code"]{column-count:2}
+@media(max-width:1100px){main[data-tab="play"]{column-count:2}}
+@media(max-width:900px){main{column-width:auto;column-count:1}}
+@media(max-width:640px){main{padding:14px}nav{padding:8px 10px}header{padding:12px 14px}}
+/* Blockly 深色页面里的浅色工作区：强制可读的对比度 */
+#blocklyDiv .blocklyToolbox{background:#f4f7fb;border-right:1px solid #d7dee7;min-width:132px;width:auto}
+#blocklyDiv .blocklyTreeRow{height:34px;line-height:34px;padding-right:8px;border-radius:0 8px 8px 0;margin:2px 6px 2px 0}
+#blocklyDiv .blocklyTreeLabel,#blocklyDiv .blocklyToolboxCategoryLabel{color:#1b2530 !important;font-size:14px;font-weight:600;letter-spacing:0}
+#blocklyDiv .blocklyTreeRow:hover{background:#e3ebf5}
+#blocklyDiv .blocklyToolboxSelected{background:#d7e4f5}
+#blocklyDiv .blocklyFlyoutBackground{fill:#f7fafd;fill-opacity:.98}
+#blocklyDiv .blocklyScrollbarHandle{fill:#c3cedb}
+/* 记录页 */
+.rec-days{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.rec-day{background:var(--bg3);border:1px solid var(--line);border-radius:12px;padding:10px 8px;cursor:pointer;text-align:center;transition:.15s}
+.rec-day:hover{border-color:var(--acc2)}
+.rec-day.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.rec-day .d{font-size:12px;color:var(--dim)}
+.rec-day .bar{height:6px;border-radius:99px;background:var(--line);margin:7px 0 6px;overflow:hidden}
+.rec-day .bar i{display:block;height:100%;background:var(--acc);min-width:2px}
+.rec-day .n{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.rec-list{border:1px solid var(--line);border-radius:10px;max-height:520px;overflow:auto}
+.rec-item{display:flex;gap:11px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline}
+.rec-item:last-child{border-bottom:none}
+.rec-item .t{color:var(--dim);font-family:ui-monospace,Consolas,monospace;font-size:12px;width:46px;flex:none}
+.rec-item .x{flex:1}
+@media(max-width:640px){.rec-days{grid-template-columns:repeat(4,1fr)}}
+/* 新手引导 */
+.wizard{position:fixed;inset:0;background:rgba(6,10,16,.78);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.wizard-box{background:#141c26;border:1px solid #2a3644;border-radius:16px;padding:22px 24px;max-width:620px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.wizard-box h2{margin:4px 0 12px;font-size:20px;color:#eaf1f8}
+.wizard-box p{margin:8px 0;line-height:1.65;color:#c6d2df}
+.wsteps{display:flex;gap:6px;margin-bottom:10px}
+.wsteps span{height:4px;flex:1;border-radius:2px;background:#2b3746}
+.wsteps span.on{background:#38d39f}
+.wrow{display:flex;gap:10px;margin-top:18px;align-items:center}
+.wizard .log{max-height:200px;overflow:auto;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>Vector<span>Pal</span> 控制台</h1>
+  <span class="badge" title="控制台自己的连接"><span class="dot" id="conn"></span><span id="connText">连接中</span></span>
+  <span class="badge" id="rbotBox" title="机器人的连接（掉线时多半是关机或在重启）"><span class="dot" id="rbotDot"></span><span id="rbotText">机器人…</span></span>
+  <span class="badge" id="botName">—</span>
+  <span class="badge" id="batt">—</span>
+</header>
+<nav id="nav">
+  <button data-tab="home" class="active">总览</button>
+  <button data-tab="play">玩 · 说 · 动作</button>
+  <button data-tab="code">编程工坊</button>
+  <button data-tab="rec">记录</button>
+  <button data-tab="wiki">手册</button>
+  <button data-tab="set">设置</button>
+</nav>
+<main>
+<div id="cloudWarn" class="cloudwarn" style="display:none"></div>
+
+<section id="home" class="active">
+  <div class="card">
+    <h3>实时状态</h3>
+    <div class="grid g4">
+      <div class="stat"><div class="k">电量</div><div class="v" id="sBatt">—<small>%</small></div></div>
+      <div class="stat"><div class="k">充电台</div><div class="v" id="sCharger">—</div></div>
+      <div class="stat"><div class="k">头部角度</div><div class="v" id="sHead">—<small> rad</small></div></div>
+      <div class="stat"><div class="k">升降高度</div><div class="v" id="sLift">—<small> mm</small></div></div>
+      <div class="stat"><div class="k">触摸</div><div class="v" id="sTouch">—</div></div>
+      <div class="stat"><div class="k">情绪值</div><div class="v" id="sStim">—</div></div>
+      <div class="stat"><div class="k">位置</div><div class="v" id="sPose" style="font-size:15px">—</div></div>
+      <div class="stat"><div class="k">状态</div><div class="v" id="sStatus" style="font-size:14px;font-family:monospace">—</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>快速操作</h3>
+    <div class="row">
+      <button class="btn primary" onclick="quickSay('你好呀，我是 Vector，很高兴认识你！')">打个招呼</button>
+      <button class="btn" onclick="act('anim',{name:'anim_pounce_success_02'})">开心跳一下</button>
+      <button class="btn" onclick="act('head',{angle:0.5})">抬头</button>
+      <button class="btn" onclick="act('head',{angle:-0.3})">低头</button>
+      <button class="btn" onclick="act('lift',{height:80})">举高</button>
+      <button class="btn" onclick="act('lift',{height:32})">放下</button>
+      <button class="btn ghost" onclick="act('stop',{})">急停</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>最近事件</h3>
+    <div class="log" id="homeLog"></div>
+  </div>
+</section>
+
+<section id="rec">
+  <div class="card">
+    <h3>最近 7 天它做了什么</h3>
+    <div class="rec-days" id="recDays"><div class="empty">读取中…</div></div>
+    <div class="muted" id="recSum" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h3>当天记录 <span class="muted" id="recDate"></span></h3>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="recPrev">← 前一天</button>
+      <button class="btn" id="recToday">今天</button>
+      <button class="btn" id="recNext">后一天 →</button>
+      <button class="btn ghost" id="recReload">刷新</button>
+      <span class="muted" id="recState"></span>
+    </div>
+    <div class="rec-list" id="recList"><div class="empty">还没有记录</div></div>
+    <div class="muted" style="margin-top:10px">记录存在本机 <code>data/activity/</code> 里，一天一个文件，不会上传到任何地方。</div>
+  </div>
+</section>
+
+<section id="say">
+  <div class="card">
+    <h3>让 Vector 说话</h3>
+    <textarea id="sayText" placeholder="输入想让它说的话（支持中文）">你好，我是 Vector，你的机器人朋友。</textarea>
+    <div class="grid g2" style="margin-top:12px">
+      <div><label class="sm">音色</label><select id="sayVoice"></select></div>
+      <div><label class="sm">语速 <span id="rateVal">0</span></label><input type="range" id="sayRate" min="-5" max="5" value="0" oninput="rateVal.textContent=this.value"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="sayBtn" onclick="doSay()">说话</button>
+      <span class="muted" id="sayState"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>常说的话</h3>
+    <div class="row" id="phrases">
+      <span class="chip" onclick="setSay('早上好！今天也要开开心心哦。')">早上好</span>
+      <span class="chip" onclick="setSay('该写作业啦，我陪你一起。')">写作业</span>
+      <span class="chip" onclick="setSay('你真棒，我为你骄傲！')">夸奖</span>
+      <span class="chip" onclick="setSay('我们一起玩个游戏吧！')">玩游戏</span>
+      <span class="chip" onclick="setSay('晚安，做个好梦。')">晚安</span>
+    </div>
+  </div>
+</section>
+
+<section id="anim">
+  <div class="card">
+    <h3>动作库 <span class="muted" id="animCount"></span></h3>
+    <div class="row" id="animCats" style="margin-bottom:8px"></div>
+    <input type="text" id="animSearch" placeholder="搜索动画名，例如 pounce / dance / happy" oninput="renderAnims()" />
+    <label class="sm" style="margin-top:8px;display:block"><input type="checkbox" id="animShowBad" onchange="renderAnims()"> 显示固件不认识的名字（点了没反应的那些）</label>
+    <div class="list" id="animList" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h3>预设行为（AppIntent）</h3>
+    <div class="row" id="intents"></div>
+  </div>
+  <div class="card">
+    <h3>它站在充电仓上？</h3>
+    <p class="muted">在充电仓上时固件不执行动画和走动，只能抬头、举升、说话。点下面按钮让它自己开下来。</p>
+    <div class="row"><button class="btn" onclick="act('off-charger')">让它下充电仓</button></div>
+  </div>
+</section>
+
+<section id="eye">
+  <div class="card">
+    <h3>眼睛颜色</h3>
+    <div class="preview" id="eyePrev" style="margin-bottom:14px"></div>
+    <label class="sm">色相 <span id="hueVal">0.50</span></label>
+    <input type="range" id="hue" min="0" max="1" step="0.01" value="0.5" oninput="eyeChanged()">
+    <label class="sm" style="margin-top:10px">饱和度 <span id="satVal">1.00</span></label>
+    <input type="range" id="sat" min="0" max="1" step="0.01" value="1" oninput="eyeChanged()">
+    <label class="sm" style="margin-top:10px">亮度 <span id="lightVal">0.50</span></label>
+    <input type="range" id="light" min="0.1" max="1" step="0.01" value="0.5" oninput="eyeChanged()">
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" onclick="applyEye()">应用</button>
+      <button class="btn ghost" onclick="act('rpc',{method:'SetEyeColor',req:{hue:0,saturation:1,light:0.5}})">恢复默认</button>
+    </div>
+    <div class="row" style="margin-top:14px" id="eyePresets"></div>
+  </div>
+</section>
+
+<section id="cam">
+  <div class="card">
+    <h3>看到的世界</h3>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn primary" onclick="snap()">看一眼</button>
+      <button class="btn" id="camSave" onclick="savePhoto()">📷 拍一张存进相册</button>
+      <label class="muted"><input type="checkbox" id="camAuto" onchange="camLoop()"> 自动刷新（3秒）</label>
+    </div>
+    <img id="snap" alt="点击「看一眼」" />
+    <div class="muted" id="camInfo" style="margin-top:8px"></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>相册 <span class="muted" id="phCount"></span></h3>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" onclick="loadPhotos()">刷新</button>
+      <span class="muted">点照片看大图，鼠标移到照片上点 ✕ 可以删掉</span>
+    </div>
+    <div class="ph-grid" id="phGrid"></div>
+  </div>
+</section>
+
+<section id="lab">
+  <div class="card">
+    <h3>传感器实验室</h3>
+    <canvas id="chart" width="900" height="170"></canvas>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">加速度 Z / 触摸值 实时曲线</span>
+      <span class="badge" id="labTouch">触摸 —</span>
+      <span class="badge" id="labAccel">加速度 —</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>事件流</h3>
+    <div class="log" id="labLog"></div>
+  </div>
+</section>
+
+<section id="prog">
+  <div class="card">
+    <h3>编程工坊 · 点一下就加一块</h3>
+    <div class="row" style="margin-bottom:12px" id="stepBtns"></div>
+    <div class="steps" id="steps"><div class="empty">还没有积木，点上面的按钮添加</div></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" onclick="runProgram()">▶ 运行</button>
+      <button class="btn" onclick="clearProgram()">清空</button>
+      <button class="btn ghost" onclick="saveProgram()">保存</button>
+      <button class="btn ghost" onclick="loadProgram()">读取</button>
+      <label class="muted">循环 <input type="number" id="progLoops" value="1" min="1" max="10" style="width:60px;display:inline-block"></label>
+      <span class="muted" id="progState"></span>
+    </div>
+  </div>
+</section>
+
+<section id="blocks">
+  <div class="card" style="padding:12px">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn primary" id="blkRun">▶ 运行积木</button>
+      <button class="btn" id="blkStop">■ 停下</button>
+      <button class="btn ghost" id="blkClean">清空</button>
+      <button class="btn ghost" onclick="clearRules()">清空自动反应</button>
+      <button class="btn ghost" onclick="bindVoice()">绑一句口令</button>
+      <span class="muted" style="width:10px">｜</span>
+      <button class="btn ghost" onclick="loadExample('greet')">示例：打招呼</button>
+      <button class="btn ghost" onclick="loadExample('dance')">示例：跳舞串烧</button>
+      <button class="btn ghost" onclick="loadExample('patrol')">示例：小巡逻兵</button>
+      <button class="btn ghost" onclick="loadExample('pet')">示例：摸摸我</button>
+      <span class="muted" id="blkState">拖积木 → 点运行</span>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <select id="blkWorks" style="max-width:210px"></select>
+      <input type="text" id="blkName" placeholder="作品名字（比如：我的第一段舞）" style="max-width:240px">
+      <button class="btn primary" id="blkSave">保存</button>
+      <button class="btn ghost" id="blkNew">新建</button>
+      <button class="btn ghost" id="blkDel">删除</button>
+      <span class="muted" id="blkWorkState">还没保存</span>
+    </div>
+    <div id="blocklyDiv" style="height:560px;border-radius:12px;overflow:hidden"></div>
+  </div>
+  <div class="card">
+    <h3>这段程序会做什么</h3>
+    <pre class="log" id="blkSteps" style="white-space:pre-wrap">把左边的积木拖进来，这里会显示程序会做什么</pre>
+    <div class="muted" style="margin-top:10px">积木会翻译成和「编程」页一样的动作序列，一样有 5 分钟总超时和悬崖保护；点「停下」会立刻停住电机。<br>「当…就…」是自动反应：点过「运行积木」之后不用再点，机器人被摸头、被抱起来、看到桌边时会自己做一遍。</div>
+  </div>
+</section>
+
+<section id="voice">
+  <div class="card">
+    <h3>语音助手</h3>
+    <div class="row">
+      <button class="btn primary" id="vToggle">开启</button>
+      <span class="badge" id="vStt">识别引擎：加载中</span>
+      <span class="muted">对它说「Hey Vector」，再说下面这些话</span>
+    </div>
+    <div class="muted" id="vLast" style="margin-top:12px">还没听到任何话</div>
+  </div>
+
+  <div class="card">
+    <h3>试一句（不经过麦克风，直接测试理解）</h3>
+    <div class="row">
+      <input type="text" id="vTest" placeholder="例如：跳个舞" style="flex:1;min-width:200px">
+      <button class="btn" id="vTestBtn">模拟识别</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>它能听懂的话</h3>
+    <div class="list" id="vTriggers" style="max-height:420px"></div>
+  </div>
+
+  <div class="card">
+    <h3>教它一句新话</h3>
+    <div class="row">
+      <input type="text" id="vPhrase" placeholder="你说的话，例如：变成绿色" style="flex:1;min-width:150px">
+      <select id="vAction" style="width:auto">
+        <option value="anim">播动画</option>
+        <option value="say">说一句话</option>
+        <option value="eye">换眼睛颜色</option>
+        <option value="forward">前进</option>
+        <option value="back">后退</option>
+        <option value="turn">转圈</option>
+        <option value="stop">停下</option>
+        <option value="intent">系统意图</option>
+      </select>
+      <input type="text" id="vArg" placeholder="参数（动画名 / 要说的话 / 角度）" style="flex:1;min-width:150px">
+      <button class="btn primary" id="vAdd">添加</button>
+    </div>
+    <div class="muted" style="margin-top:8px">添加后立即生效，孩子说完这句话，机器人就照做。内置指令不能删除。</div>
+  </div>
+</section>
+
+<section id="wiki">
+  <div class="wikibar">
+    <input type="text" id="wikiSearch" placeholder="搜手册：动画、触发器、接口、积木、报错…" autocomplete="off" />
+    <span class="muted" id="wikiHint">共 9 篇</span>
+  </div>
+  <div class="wikigrid">
+    <div class="wikiside" id="wikiNav"><div class="empty">..</div></div>
+    <div class="wikibody" id="wikiBody"><div class="empty">正在装手册…</div></div>
+  </div>
+</section>
+
+<section id="set">
+  <div class="card">
+    <h3>接入机器人（配对）</h3>
+    <p class="sm" style="line-height:1.7">第一次用、换了机器人、或者它恢复出厂了，都要在这里接一次。<br>
+      能用的前提是机器人开着 SSH —— 刷了 WireOS / OSKR 的机器人都行；原厂固件得先刷系统（或先用 wire-pod 的蓝牙方式接一次）。<br>
+      接完之后它会自己重启、自己连回来，你不用再动它。</p>
+    <div class="grid g2">
+      <div>
+        <label class="sm">机器人的局域网 IP</label>
+        <input id="pairIp" placeholder="例如 192.168.1.254">
+      </div>
+      <div>
+        <label class="sm">root 的 SSH 私钥（不选就自动找电脑上已有的）</label>
+        <input id="pairKeyFile" type="file" accept=".pem,.key,.txt,*">
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:center;gap:10px">
+      <button class="pri" id="pairGo">开始接入</button>
+      <span class="sm" id="pairStep">还没开始</span>
+    </div>
+    <pre id="pairLog" class="sm" style="display:none;margin-top:10px;max-height:200px;overflow:auto;background:#0d1117;border:1px solid #222;border-radius:8px;padding:10px;line-height:1.55"></pre>
+    <div id="pairRobots" class="sm" style="margin-top:10px;line-height:1.7"></div>
+  </div>
+
+  <div class="card">
+    <h3>机器人信息</h3>
+    <div class="grid g2" id="setInfo"></div>
+  </div>
+
+  <div class="card">
+    <h3>语言与地区</h3>
+    <div class="grid g2">
+      <div>
+        <label class="sm">时区</label>
+        <select id="sTz">
+          <option value="Asia/Shanghai">中国标准时间（北京）</option>
+          <option value="Asia/Hong_Kong">香港</option>
+          <option value="Asia/Taipei">台北</option>
+          <option value="Asia/Singapore">新加坡</option>
+          <option value="Asia/Tokyo">东京</option>
+          <option value="Asia/Seoul">首尔</option>
+          <option value="Europe/London">伦敦</option>
+          <option value="America/New_York">纽约</option>
+          <option value="America/Los_Angeles">洛杉矶</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div>
+        <label class="sm">语言 / 地区代码</label>
+        <select id="sLocale">
+          <option value="zh-CN">简体中文（zh-CN）</option>
+          <option value="zh-TW">繁体中文（zh-TW）</option>
+          <option value="en-US">英语（美国 en-US）</option>
+          <option value="en-GB">英语（英国 en-GB）</option>
+          <option value="ja-JP">日语（ja-JP）</option>
+          <option value="ko-KR">韩语（ko-KR）</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="sm">所在地（回答天气、时间时用）</label>
+        <input type="text" id="sLoc" placeholder="例如：Beijing, China">
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="sm"><input type="checkbox" id="sMetric" style="width:auto;margin-right:6px">用公制（米 / 公斤）</label>
+      <label class="sm"><input type="checkbox" id="sTempF" style="width:auto;margin-right:6px">用华氏度</label>
+      <label class="sm"><input type="checkbox" id="sClock24" style="width:auto;margin-right:6px">24 小时制</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>音量与眼睛</h3>
+    <div class="grid g2">
+      <div>
+        <label class="sm">扬声器音量</label>
+        <select id="sVol">
+          <option value="0">0 · 静音</option>
+          <option value="1">1 · 很小</option>
+          <option value="2">2 · 小</option>
+          <option value="3">3 · 中</option>
+          <option value="4">4 · 大</option>
+          <option value="5">5 · 最大</option>
+        </select>
+      </div>
+      <div>
+        <label class="sm">眼睛配色</label>
+        <select id="sEye">
+          <option value="0">蒂尔青</option>
+          <option value="1">橙色</option>
+          <option value="2">黄色</option>
+          <option value="3">青柠绿</option>
+          <option value="4">蓝宝石</option>
+          <option value="5">紫色</option>
+          <option value="6">矩阵绿</option>
+        </select>
+      </div>
+    </div>
+    <label class="sm" style="margin-top:12px;display:block"><input type="checkbox" id="sBtnWake" style="width:auto;margin-right:6px">按键唤醒：按一下它头顶的按钮就开始听（"Hey Vector" 喊不动时用这个）</label>
+    <div class="muted" style="margin-top:8px">这些设置写在机器人自己身上，掉电和换网络都不会丢。语言只会影响它回答天气、单位这类内容。</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn primary" id="sSave">保存到机器人</button>
+      <button class="btn" id="sReload">重新读取</button>
+      <span class="muted" id="sState">尚未读取</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>系统与日志</h3>
+    <div class="grid g2">
+      <div>
+        <label class="sm">运行状态</label>
+        <div class="log" id="sysInfo" style="white-space:pre-wrap;min-height:120px">读取中…</div>
+      </div>
+      <div>
+        <label class="sm">日志与开关</label>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn ghost" id="sysLogPod">看 pod 日志</button>
+          <button class="btn ghost" id="sysLogWd">看守护日志</button>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn" id="sysRestart">重启 pod</button>
+          <button class="btn ghost" id="sysQuit">完全退出</button>
+          <button class="btn ghost" id="sysWizard">重看引导</button>
+        </div>
+        <pre class="log" id="sysLog" style="white-space:pre-wrap;max-height:180px;overflow:auto;margin:0">点上面的按钮看日志</pre>
+      </div>
+    </div>
+    <div class="muted" style="margin-top:8px">「重启 pod」会让机器人掉线几秒，然后自己回来；「完全退出」连守护进程一起停，下次要手动再打开（或重启电脑）。</div>
+  </div>
+
+  <div class="card">
+    <h3>高级：原始 RPC</h3>
+    <div class="grid g2">
+      <div><label class="sm">方法名</label><input type="text" id="rpcMethod" value="BatteryState"></div>
+      <div><label class="sm">参数 JSON</label><input type="text" id="rpcReq" value="{}"></div>
+    </div>
+    <button class="btn" style="margin-top:12px" onclick="rpcCall()">调用</button>
+    <div class="log" id="rpcOut" style="margin-top:10px"></div>
+  </div>
+</section>
+
+</main>
+<div class="wizard" id="wizard" style="display:none">
+  <div class="wizard-box">
+    <div class="wsteps"><span class="on"></span><span></span><span></span><span></span></div>
+
+    <div class="wstep" data-step="1">
+      <h2>👋 这是小 Vector 的控制台</h2>
+      <p>机器人已经不用连 Digital Dream Labs 的服务器了，全部在你家这台电脑上跑：说话、动作、编程序、还能看它一天都做了什么。</p>
+      <p class="muted">下面三步带你试一遍，随时可以点「跳过」，以后在「设置 → 系统与日志 → 重看引导」还能再看。</p>
+    </div>
+
+    <div class="wstep" data-step="2" style="display:none">
+      <h2>先看看它连上了没</h2>
+      <div class="log" id="wizStatus" style="white-space:pre-wrap">读取中…</div>
+      <p class="muted">如果显示未连接：等十几秒，或者把机器人放回充电台上碰一下唤醒它，再点「刷新」。</p>
+      <button class="btn ghost" id="wizRefresh">刷新</button>
+    </div>
+
+    <div class="wstep" data-step="3" style="display:none">
+      <h2>让它说一句话</h2>
+      <p>输入一句中文，点按钮，它会用自己合成的语音说出来，全程不用联网。</p>
+      <input type="text" id="wizSay" value="你好呀，我是小 Vector！" style="max-width:420px">
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="wizSpeak">说给我听</button>
+        <span class="muted" id="wizSayState"></span>
+      </div>
+    </div>
+
+    <div class="wstep" data-step="4" style="display:none">
+      <h2>接下来玩这些</h2>
+      <div class="row">
+        <button class="btn" id="wizGoRec">📔 看它的记录</button>
+        <button class="btn" id="wizGoBlocks">🧩 用积木教它做事</button>
+        <button class="btn" id="wizGoVoice">🗣 用嘴指挥它</button>
+      </div>
+      <p class="muted" id="wizPin"></p>
+      <p class="muted">「设置」里可以改它的时区、语言、音量；「系统与日志」能重启它或者看日志。</p>
+    </div>
+
+    <div class="wrow">
+      <button class="btn ghost" id="wizSkip">跳过</button>
+      <span style="flex:1"></span>
+      <button class="btn ghost" id="wizPrev">上一步</button>
+      <button class="btn primary" id="wizNext">下一步</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+let connected = false, anims = [], state = null, stepList = [];
+const INTENTS = [
+  ['intent_imperative_lookatme','看着我'],['intent_play_fistbump','碰拳'],
+  ['intent_play_popawheelie','翘轮子'],['intent_play_rollcube','滚方块'],
+  ['intent_imperative_come','过来'],['intent_system_sleep','睡觉'],
+  ['intent_explore_start','去探索']
+];
+const EYE_PRESETS = [[0,'红色'],[0.33,'绿色'],[0.58,'蓝色'],[0.14,'黄色'],[0.78,'紫色'],[0.5,'青色']];
+
+// 局域网访问时的 PIN：存在 localStorage，附在 URL 上（EventSource 也能用）
+function vpPin(){ try{ return localStorage.getItem('vp_pin')||''; }catch{ return ''; } }
+function pinUrl(p){ const v = vpPin(); if(!v) return p; return p + (p.includes('?')?'&':'?') + 'pin=' + encodeURIComponent(v); }
+async function api(path, opts){
+  const r = await fetch(pinUrl(path), opts);
+  if(r.status===401){
+    const v = prompt('这个页面开了 PIN 保护，请输入 PIN（在 pod 启动日志或 data/api-pin.txt 里）');
+    if(v){ try{ localStorage.setItem('vp_pin', v.trim()); }catch{} return api(path, opts); }
+  }
+  const ct = r.headers.get('content-type')||'';
+  if(!ct.includes('json')) return r;
+  return r.json();
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+async function post(path, body){
+  try{
+    let r = await fetch(pinUrl(path),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})});
+    if(r.status===401){
+      const v = prompt('这个页面开了 PIN 保护，请输入 PIN');
+      if(v){ try{ localStorage.setItem('vp_pin', v.trim()); }catch{} r = await fetch(pinUrl(path),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})}); }
+    }
+    return await r.json();
+  }
+  catch(e){ toast('出错：'+e.message); return {error:e.message}; }
+}
+async function act(kind, body){
+  const ev = window.event;                       // 记下是哪个按钮点的（异步之后就拿不到了）
+  const btn = ev && ev.currentTarget && ev.currentTarget.tagName === 'BUTTON' ? ev.currentTarget : null;
+  if(btn && btn.disabled) return {error:'正在做上一个动作'};
+  if(state && Date.now() - (state.ts||0) > 10000) { toast('机器人现在没连上，等它回来再点'); return {error:'offline'}; }
+  if(btn) btn.disabled = true;
+  toast('正在做…');
+  try{
+    const r = await post('/api/robot/'+kind, body||{});
+    if(r && r.error) toast('没做成：'+r.error + (/充电仓/.test(r.error) ? '（去「动作」页点「让它下充电仓」）' : ''));
+    else if(kind==='stop') toast('停住了');
+    else toast('做好了');
+    return r;
+  } finally { if(btn) btn.disabled = false; }
+}
+// 机器人是否在线：看事件流里的状态有多新
+function setRobotOnline(on){
+  const d=$('rbotDot'), t=$('rbotText');
+  if(!d||!t) return;
+  d.classList.toggle('on', !!on);
+  t.textContent = on ? '机器人在线' : '机器人掉线';
+}
+
+// nav：6 个页签，每个页签同时铺开多块内容（多栏平铺，不再一页一栏）
+const TABS = {
+  home: ['home'],
+  play: ['say','anim','eye','cam','voice'],
+  code: ['lab','prog','blocks'],
+  rec:  ['rec'],
+  wiki: ['wiki'],
+  set:  ['set']
+};
+const WIDE = ['home','rec','set','blocks','wiki'];
+function showPage(tab){
+  if(!TABS[tab]) return;
+  const ids = TABS[tab];
+  document.querySelector('main').dataset.tab = tab;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active', x.dataset.tab===tab));
+  document.querySelectorAll('main section').forEach(x=>{
+    x.classList.toggle('active', ids.indexOf(x.id)>=0);
+    if(WIDE.indexOf(x.id)>=0) x.classList.add('wide');
+  });
+  if(tab==='set'){ loadInfo(); loadSettings(); loadSystemInfo(); loadPairRobots(); }
+  if(ids.indexOf('cam')>=0) loadPhotos();
+  if(ids.indexOf('blocks')>=0 && typeof ensureBlocks==='function') ensureBlocks();
+  if(tab==='rec') loadRec();
+  if(ids.indexOf('voice')>=0 && typeof loadVoice==='function') loadVoice();
+  if(tab==='wiki' && typeof ensureWiki==='function') ensureWiki();
+  try{ history.replaceState(null,'','#'+tab); }catch(e){}
+}
+document.querySelectorAll('#nav button').forEach(b=>{ b.onclick=()=>showPage(b.dataset.tab); });
+(function(){ const t=(location.hash||'').replace('#',''); if(t && TABS[t]) setTimeout(()=>showPage(t),0); })();
+
+
+// 手册：public/wiki.html 里一篇一个 <article>，这里拆成「左目录 + 右正文」，正文里的按钮可以直接试
+let WIKI = null, wikiOpenId = null;
+async function ensureWiki(){
+  if(!WIKI){
+    try{
+      const res = await api('/wiki.html', { cache:'no-store' });
+      const txt = await res.text();
+      const doc = new DOMParser().parseFromString(txt, 'text/html');
+      WIKI = Array.from(doc.querySelectorAll('article')).map(a => ({
+        id: a.id,
+        title: a.dataset.title || a.id,
+        icon: a.dataset.icon || '📄',
+        dyn: a.dataset.dynamic || '',
+        html: a.innerHTML,
+        text: (a.textContent || '').replace(/\s+/g, ' ')
+      }));
+    }catch(e){
+      $('wikiBody').innerHTML = '<div class="empty">手册没载入：' + esc(e.message) + '</div>';
+      return;
+    }
+    if(!WIKI.length){ $('wikiBody').innerHTML = '<div class="empty">手册是空的</div>'; return; }
+    $('wikiSearch').oninput = e => renderWikiNav(e.target.value);
+    $('wikiNav').onclick = e => { const b = e.target.closest('button[data-w]'); if(b) openWiki(b.dataset.w); };
+    $('wikiBody').onclick = e => { const b = e.target.closest('button[data-run]'); if(b) wikiAct(b); };
+  }
+  renderWikiNav($('wikiSearch').value);
+  const t = (location.hash || '').replace('#','');
+  openWiki(WIKI.some(x => x.id === t) ? t : (wikiOpenId || WIKI[0].id));
+}
+function renderWikiNav(q){
+  const qq = String(q || '').trim().toLowerCase();
+  let shown = 0;
+  $('wikiNav').innerHTML = WIKI.map(s => {
+    let n = 0;
+    if(qq){
+      n = (s.title + ' ' + s.text).toLowerCase().split(qq).length - 1;
+      if(!n) return '';
+      shown++;
+    }
+    return '<button data-w="' + s.id + '"' + (s.id === wikiOpenId ? ' class="active"' : '') + '>'
+      + '<i>' + s.icon + '</i><span>' + esc(s.title) + '</span>' + (qq ? '<em>' + n + '</em>' : '') + '</button>';
+  }).join('') || '<div class="empty">没有匹配的章节</div>';
+  $('wikiHint').textContent = qq ? ('搜到 ' + shown + ' 篇') : ('共 ' + WIKI.length + ' 篇');
+}
+function openWiki(id){
+  const s = WIKI.find(x => x.id === id) || WIKI[0];
+  if(!s) return;
+  wikiOpenId = s.id;
+  $('wikiBody').innerHTML = '<h2 class="wtitle">' + s.icon + ' ' + esc(s.title) + '</h2>' + s.html;
+  document.querySelectorAll('#wikiNav button').forEach(b => b.classList.toggle('active', b.dataset.w === s.id));
+  if(s.dyn === 'anims') fillAnims();
+  if(s.dyn === 'triggers') fillTriggers();
+}
+async function fillAnims(){
+  const box = $('dynAnims'); if(!box) return;
+  if(!anims.length) await loadAnims();
+  if(!anims.length){ box.innerHTML = '<div class="empty">动画清单还没读到</div>'; return; }
+  box.innerHTML = '<div class="row"><input type="text" id="dynAnimQ" placeholder="搜动画名：greeting / dance / blackjack" style="max-width:320px" autocomplete="off"><span class="muted" id="dynAnimN"></span></div><div class="dyngrid" id="dynAnimGrid"></div>';
+  const paint = () => {
+    const q = ($('dynAnimQ').value || '').trim().toLowerCase();
+    const hits = q ? anims.filter(n => n.toLowerCase().includes(q)) : anims;
+    const list = hits.slice(0, 360);
+    $('dynAnimN').textContent = hits.length + ' 个' + (hits.length > list.length ? '（只列前 ' + list.length + ' 个，搜一下更准）' : '');
+    $('dynAnimGrid').innerHTML = list.map(n =>
+      '<button data-run="animation" data-arg=\'' + JSON.stringify({ name: n }) + '\'>' + esc(n) + '</button>'
+    ).join('') || '<div class="empty">没有匹配的动画</div>';
+  };
+  $('dynAnimQ').oninput = paint;
+  paint();
+}
+async function fillTriggers(){
+  const box = $('dynTriggers'); if(!box) return;
+  box.innerHTML = '<div class="dynload">正在读触发器清单…</div>';
+  let list = [];
+  try{
+    const r = await api('/api/robot/triggers');
+    list = (r && r.triggers) || [];
+    if(r && r.warning) toast(r.warning);
+  }catch(e){ box.innerHTML = '<div class="empty">触发器没读到：' + esc(e.message) + '</div>'; return; }
+  box.innerHTML = '<div class="row"><input type="text" id="dynTrigQ" placeholder="搜触发器：BlackJack / Dance / Greet" style="max-width:320px" autocomplete="off"><span class="muted" id="dynTrigN"></span></div><div class="dyngrid" id="dynTrigGrid"></div>';
+  const paint = () => {
+    const q = ($('dynTrigQ').value || '').trim().toLowerCase();
+    const hits = q ? list.filter(n => n.toLowerCase().includes(q)) : list;
+    $('dynTrigN').textContent = hits.length + ' 个';
+    $('dynTrigGrid').innerHTML = hits.map(n =>
+      '<button data-run="animation-trigger" data-arg=\'' + JSON.stringify({ name: n }) + '\'>' + esc(n) + '</button>'
+    ).join('') || '<div class="empty">没有匹配的触发器</div>';
+  };
+  $('dynTrigQ').oninput = paint;
+  paint();
+}
+async function wikiAct(btn){
+  if(btn.disabled) return;
+  const kind = btn.dataset.run, old = btn.textContent;
+  let arg = {}; try{ arg = JSON.parse(btn.dataset.arg || '{}'); }catch(e){ return toast('这条指令写错了'); }
+  if(state && Date.now() - (state.ts||0) > 10000){ toast('机器人现在没连上，等它回来再点'); return; }
+  btn.disabled = true; btn.textContent = '…';
+  toast('正在做…');
+  try{
+    const r = await post('/api/robot/' + kind, arg);
+    if(r && r.error) toast('没做成：' + r.error + (/充电仓/.test(r.error) ? '（先把它抱下来）' : ''));
+    else toast(kind === 'stop' ? '停住了' : '做好了');
+  }finally{ btn.disabled = false; btn.textContent = old; }
+}
+
+// SSE
+function connect(){
+  const es = new EventSource(pinUrl('/api/events'));
+  es.onopen = ()=>{ connected=true; $('conn').classList.add('on'); $('connText').textContent='在线'; };
+  es.onerror = ()=>{ connected=false; $('conn').classList.remove('on'); $('connText').textContent='重连中'; };
+  es.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data); }catch{ return; }
+    if(m.type==='state'){ setRobotOnline(true); applyState(m.payload); }
+    else if(m.type==='robot'){ setRobotOnline(m.payload && m.payload.online); }
+    else if(m.type==='touch'){ log('触摸 ' + (m.payload.touched?'按下':'松开') + '（' + m.payload.raw + '）'); }
+    else if(m.type==='pickedUp'){ log(m.payload?'被抱起来了':'被放下了'); }
+    else if(m.type==='charger'){ log(m.payload?'回到充电台':'离开充电台'); }
+    else if(m.type==='heard'){ log('听到：「'+(m.payload.text||'（没听清）')+'」'+(m.payload.matched?' → '+m.payload.matched:'')); loadVoice(); }
+    else if(m.type==='stim'){ if(m.payload.events && m.payload.events.length) log('情绪：'+m.payload.events.join(',')); }
+  };
+}
+function log(msg){
+  for(const id of ['labLog','homeLog']){
+    const el = $(id); if(!el) continue;
+    const t = new Date().toLocaleTimeString('zh-CN');
+    el.innerHTML = '<div><b>'+t+'</b> ' + esc(msg) + '</div>' + el.innerHTML;
+    while(el.childElementCount>60) el.lastChild.remove();
+  }
+}
+function applyState(s){
+  state = s;
+  setRobotOnline(true);
+  $('sHead').innerHTML = (s.head||0).toFixed(2) + '<small> rad</small>';
+  $('sLift').innerHTML = (s.lift||0).toFixed(0) + '<small> mm</small>';
+  $('sTouch').textContent = s.touch && s.touch.touched ? '被摸' : '空闲';
+  $('sStim').textContent = s.stim ? (s.stim.value*100).toFixed(0)+'%' : '—';
+  $('sPose').textContent = s.pose ? (s.pose.x.toFixed(0)+', '+s.pose.y.toFixed(0)) : '—';
+  $('sStatus').textContent = '0x' + (s.status||0).toString(16);
+  $('sCharger').textContent = s.onCharger ? (s.charging?'充电中':'在台上') : '地面';
+  if(s.battery){
+    $('sBatt').innerHTML = esc(battText(s.battery.level)) + '<small>%</small>';
+    $('batt').textContent = '电量 ' + battText(s.battery.level) + (s.battery.charging ? ' ⚡' : '');
+  }
+  $('labTouch').textContent = '触摸 ' + (s.touch?s.touch.raw:'—');
+  $('labAccel').textContent = '加速度 ' + (s.accel? s.accel.z.toFixed(0):'—');
+  pushChart(s);
+}
+
+// chart
+const hist = {acc:[],touch:[]};
+function pushChart(s){
+  if(!s) return;
+  hist.acc.push(s.accel?s.accel.z:0); hist.touch.push(s.touch?s.touch.raw:0);
+  if(hist.acc.length>240){ hist.acc.shift(); hist.touch.shift(); }
+  drawChart();
+}
+function drawChart(){
+  const c = $('chart'); if(!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#2a3340'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){ const y=H*i/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  const line=(arr,color,min,max)=>{
+    if(arr.length<2) return;
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    arr.forEach((v,i)=>{ const x=i/(arr.length-1)*W; const y=H-((v-min)/(max-min||1))*H; i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+    ctx.stroke();
+  };
+  line(hist.acc,'#38bdf8', 0, 20000);
+  line(hist.touch,'#4ade80', 4600, 5000);
+}
+
+// say
+async function loadVoices(){
+  const r = await api('/api/robot/voices');
+  const sel = $('sayVoice');
+  sel.innerHTML='';
+  (r.voices||[]).forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+}
+function setSay(t){ $('sayText').value=t; showPage('play'); }
+async function doSay(){
+  const text = $('sayText').value.trim(); if(!text) return toast('说点什么吧');
+  $('sayBtn').disabled=true; $('sayState').textContent='合成中…';
+  const r = await post('/api/robot/speak',{text, voice:$('sayVoice').value, rate:Number($('sayRate').value)});
+  $('sayBtn').disabled=false;
+  $('sayState').textContent = r.ok ? ('已播放 '+(r.ms/1000).toFixed(1)+'秒') : ('失败：'+(r.error||''));
+  if(!r.ok) toast('说话失败：'+(r.error||''));
+}
+async function quickSay(t){ await post('/api/robot/speak',{text:t}); toast('说话中…'); }
+
+// anims
+async function loadAnims(){
+  const r = await api('/api/robot/animations');
+  if(!r || !Array.isArray(r.animations)){
+    anims = [];
+    $('animCount').textContent = '（读取失败）';
+    $('animList').innerHTML = '<div class="empty">动画表没读到：'+(r && r.error ? r.error : '机器人这会儿没回应') +
+      '<br><button class="btn" style="margin-top:10px" onclick="loadAnims()">重试</button></div>';
+    return;
+  }
+  anims = r.animations;
+  animGood = new Set(Array.isArray(r.verified) ? r.verified : anims);
+  animBad = new Set(Array.isArray(r.unverified) ? r.unverified : []);
+  const nGood = animGood.size, nBad = animBad.size;
+  $('animCount').textContent = '（'+(nBad ? nGood+' 个能播 / '+nBad+' 个固件不认' : anims.length+' 个')+(r.cached?'，来自缓存':'')+'）';
+  renderCats();
+  renderAnims();
+  if(r.cached && r.warning) toast('动画表这次没读到，先用上次的');
+}
+const ANIM_CATS = [
+  ['greet','打招呼'], ['dance','跳舞'], ['pet','摸头'], ['fist','碰拳'], ['pounce','扑腾'],
+  ['sleep','睡觉'], ['explor','探索'], ['cube','方块'], ['photo|camera','拍照'],
+  ['react|rtsound|rtmotion|rtshake','反应'], ['lookinplace|lookat','看人'],
+  ['holiday','节日'], ['avs','语音'], ['blackjack','纸牌'], ['onboarding','开机']
+];
+let animGood = new Set(), animBad = new Set(), animCatSel = '全部';
+function animCat(n){ for(const [re,label] of ANIM_CATS){ if(new RegExp(re).test(n)) return label; } return '其它'; }
+function renderCats(){
+  const showBad = $('animShowBad').checked;
+  const pool = anims.filter(a=> showBad || !animBad.has(a));
+  const seen = {};
+  pool.forEach(a=>{ const c=animCat(a); seen[c]=(seen[c]||0)+1; });
+  const cats = ['全部'].concat(Object.keys(seen).sort((a,b)=>seen[b]-seen[a]));
+  if(cats.indexOf(animCatSel)<0) animCatSel='全部';
+  $('animCats').innerHTML = cats.map(c=>'<span class="chip'+(c===animCatSel?' on':'')+'" onclick="setAnimCat(\''+c+'\')">'+c+(c==='全部'?' '+pool.length:' '+seen[c])+'</span>').join('');
+}
+function setAnimCat(c){ animCatSel=c; renderCats(); renderAnims(); }
+function renderAnims(){
+  const q = ($('animSearch').value||'').toLowerCase();
+  const showBad = $('animShowBad').checked;
+  let list = anims.filter(a=> showBad || !animBad.has(a));
+  if(animCatSel!=='全部') list = list.filter(a=>animCat(a)===animCatSel);
+  if(q) list = list.filter(a=>a.toLowerCase().includes(q));
+  const box = $('animList');
+  box.innerHTML = list.slice(0,400).map(a=>'<div onclick="playAnim(\''+a+'\')">'+a+(animBad.has(a)?' <span class="muted">· 固件不认</span>':'')+'</div>').join('') || '<div class="empty">没有匹配的动画</div>';
+}
+async function playAnim(name){ toast('播放 '+name); await act('animation',{name}); }
+function loadIntents(){
+  $('intents').innerHTML = INTENTS.map(([k,label])=>'<span class="chip" onclick="act(\'intent\',{intent:\''+k+'\'})">'+label+'</span>').join('');
+}
+
+// eye
+function eyeChanged(){
+  const h=Number($('hue').value), s=Number($('sat').value), l=Number($('light').value);
+  $('hueVal').textContent=h.toFixed(2); $('satVal').textContent=s.toFixed(2); $('lightVal').textContent=l.toFixed(2);
+  $('eyePrev').style.background='hsl('+(h*360)+','+(s*100)+'%,'+(l*100)+'%)';
+}
+async function applyEye(){ await act('eye',{hue:Number($('hue').value),saturation:Number($('sat').value),light:Number($('light').value)}); }
+function loadEyePresets(){
+  $('eyePresets').innerHTML = EYE_PRESETS.map(([h,n])=>'<span class="chip" onclick="act(\'eye\',{hue:'+h+',saturation:1,light:0.5})">'+n+'</span>').join('');
+}
+
+// camera
+async function loadPhotos(){
+  const grid=$('phGrid'); if(!grid) return;
+  try{
+    const r = await api('/api/photos?limit=60');
+    const items = (r && r.items) || [];
+    if($('phCount')) $('phCount').textContent = items.length ? ('· 共 ' + items.length + ' 张') : '';
+    if(!items.length){ grid.innerHTML = '<div class="ph-empty">还没有照片。点上面「📷 拍一张存进相册」，或者在积木里放一块「拍张照片」。</div>'; return; }
+    grid.innerHTML = items.map(it => {
+      const d = new Date(it.ts);
+      const time = (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      const u = pinUrl(it.url);
+      return '<div class="ph-item" title="'+time+'"><img loading="lazy" src="'+u+'" onclick="window.open(\''+u+'\',\'_blank\')"><button class="ph-del" title="删除" onclick="delPhoto(\''+it.name+'\')">✕</button></div>';
+    }).join('');
+  }catch(e){ grid.innerHTML = '<div class="ph-empty">读取相册失败：'+e.message+'</div>'; }
+}
+async function savePhoto(){
+  const btn=$('camSave'); if(btn){ btn.disabled=true; }
+  if($('camInfo')) $('camInfo').textContent='正在拍照…';
+  try{
+    const r = await post('/api/robot/photo', {});
+    if(!r || !r.ok) throw new Error((r && r.error) || '拍照失败');
+    const u = pinUrl(r.url);
+    if($('snap')) $('snap').src = u + (u.includes('?') ? '&' : '?') + 't=' + Date.now();
+    if($('camInfo')) $('camInfo').textContent = '照片已存进相册 · ' + Math.round((r.bytes||0)/1024) + ' KB';
+    loadPhotos();
+  }catch(e){ if($('camInfo')) $('camInfo').textContent='拍照失败：'+e.message; }
+  finally { if(btn){ btn.disabled=false; } }
+}
+async function delPhoto(name){
+  try{
+    const r = await fetch(pinUrl('/api/photos/'+encodeURIComponent(name)), {method:'DELETE'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    loadPhotos();
+  }catch(e){ toast('删除失败：'+e.message); }
+}
+let camTimer=null;
+async function snap(){
+  const img=$('snap'); $('camInfo').textContent='拍照中…';
+  try{
+    const r = await fetch(pinUrl('/api/robot/image?t='+Date.now()));
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const blob = await r.blob();
+    img.src = URL.createObjectURL(blob);
+    $('camInfo').textContent = '已拍摄 ' + new Date().toLocaleTimeString('zh-CN') + ' · ' + Math.round(blob.size/1024) + ' KB';
+  }catch(e){ $('camInfo').textContent='拍照失败：'+e.message; }
+}
+function camLoop(){
+  if(camTimer){ clearInterval(camTimer); camTimer=null; }
+  if($('camAuto').checked){ camTimer=setInterval(snap, 3000); }
+}
+
+// program
+const STEP_DEFS = [
+  ['说话','say'],['动画','anim'],['前进','forward'],['后退','back'],['转向','turn'],['抬头','head'],['升降','lift'],['换眼','eye'],['拍照','photo'],['等待','wait']
+];
+function loadStepBtns(){
+  $('stepBtns').innerHTML = STEP_DEFS.map(([label,t])=>'<button class="btn" onclick="addStep(\''+t+'\')">+ '+label+'</button>').join('');
+}
+function addStep(t){
+  let s = {type:t};
+  if(t==='say') s = {type:'say', text:'你好！', voice:'Microsoft Huihui Desktop'};
+  else if(t==='anim') s = {type:'anim', name:'anim_pounce_success_02'};
+  else if(t==='forward'||t==='back') s = {type:t, mm:100, speed:120};
+  else if(t==='turn') s = {type:'turn', deg:90, speed:100};
+  else if(t==='head') s = {type:'head', angle:0.5};
+  else if(t==='lift') s = {type:'lift', height:80};
+  else if(t==='eye') s = {type:'eye', hue:0.5, saturation:1, light:0.5};
+  else if(t==='wait') s = {type:'wait', ms:1000};
+  stepList.push(s); renderSteps();
+}
+function renderSteps(){
+  const box=$('steps');
+  if(!stepList.length){ box.innerHTML='<div class="empty">还没有积木，点上面的按钮添加</div>'; return; }
+  box.innerHTML = stepList.map((s,i)=>{
+    let desc = s.type;
+    if(s.type==='say') desc = '说：“'+s.text+'”';
+    else if(s.type==='anim') desc = '播放动画 '+s.name;
+    else if(s.type==='forward') desc = '前进 '+s.mm+' mm';
+    else if(s.type==='back') desc = '后退 '+s.mm+' mm';
+    else if(s.type==='turn') desc = '转向 '+s.deg+'°';
+    else if(s.type==='head') desc = '头部到 '+s.angle+' rad';
+    else if(s.type==='lift') desc = '升降到 '+s.height+' mm';
+    else if(s.type==='eye') desc = '眼睛颜色 '+s.hue;
+    else if(s.type==='wait') desc = '等待 '+s.ms+' ms';
+    return '<div class="step"><span class="n">'+(i+1)+'</span><span class="t">'+desc+'</span><button onclick="delStep('+i+')">×</button></div>';
+  }).join('');
+}
+function delStep(i){ stepList.splice(i,1); renderSteps(); }
+function clearProgram(){ stepList=[]; renderSteps(); }
+async function runProgram(){
+  if(!stepList.length) return toast('先加几块积木');
+  $('progState').textContent='运行中…';
+  const r = await post('/api/program/run',{steps:stepList, loops:Number($('progLoops').value)});
+  $('progState').textContent = r.ok ? ('完成，用时 '+(r.ms/1000).toFixed(1)+'秒') : ('出错：'+r.error);
+  if(!r.ok) toast('运行失败：'+r.error);
+}
+function saveProgram(){ localStorage.setItem('vp_program', JSON.stringify(stepList)); toast('已保存到本机'); }
+function loadProgram(){ const s=localStorage.getItem('vp_program'); if(!s) return toast('没有保存过'); stepList=JSON.parse(s); renderSteps(); toast('已读取'); }
+
+// 机器人跟 pod 的「联网会话」还活着吗？SDK 那条通道（点按钮能动）与它是两回事：
+// 会话死了还能点按钮，但喊唤醒词不会有任何反应，必须让机器人重新开机。
+async function checkCloud(){
+  const box = $('cloudWarn'); if(!box) return;
+  try{
+    const r = await api('/api/status');
+    const age = r.robot ? r.robot.cloudAgeMs : null;
+    if(typeof age === 'number' && age > 150000){
+      const mins = Math.round(age/60000);
+      box.style.display = 'block';
+      box.innerHTML = '⚠️ 机器人已经 ' + mins + ' 分钟没跟这里的语音服务说话了。'
+        + '（点按钮它还会动，那是另一条直连通道。）<br>'
+        + '现在喊「Hey Vector」不会有反应。办法：长按它背上的按钮约 15 秒关机，再按一下开机，等十几秒它自己连回来。';
+    } else box.style.display = 'none';
+  }catch{}
+}
+
+// settings
+async function loadInfo(){
+  const r = await api('/api/status');
+  const rob = r.robot||{};
+  $('botName').textContent = rob.info ? ('ESN '+rob.info.esn) : '未连接';
+  const items = [
+    ['在线', rob.connected? '是':'否'],
+    ['IP', rob.info?rob.info.ip:'—'],
+    ['系统版本', rob.version?rob.version.os:'—'],
+    ['电量', rob.battery? battText(rob.battery.level)+' （'+rob.battery.volts.toFixed(2)+'V）':'—'],
+    ['充电', rob.battery? (rob.battery.charging?'是':'否'):'—'],
+    ['错误', rob.error||'无']
+  ];
+  $('setInfo').innerHTML = items.map(([k,v])=>'<div class="stat"><div class="k">'+k+'</div><div class="v" style="font-size:15px">'+v+'</div></div>').join('');
+  if(rob.battery) $('batt').textContent = '电量 '+battText(rob.battery.level)+(rob.battery.charging?' ⚡':'');
+}
+// ---- robot settings (RobotSettingsConfig jdoc) ----
+function setSelect(id, value){
+  const el = $(id); if(!el) return;
+  const v = String(value);
+  if(![...el.options].some(o=>o.value===v)){
+    const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o);
+  }
+  el.value = v;
+}
+async function loadSettings(){
+  const st = $('sState'); if(!st) return;
+  st.textContent = '读取中…';
+  const r = await api('/api/settings');
+  if(!r || r.ok===false){ st.textContent = '读取失败：' + ((r&&r.error)||'未知'); return; }
+  const s = r.settings || {};
+  setSelect('sTz', s.time_zone || 'Asia/Shanghai');
+  setSelect('sLocale', s.locale || 'en-US');
+  $('sLoc').value = s.default_location || '';
+  $('sMetric').checked = !!s.dist_is_metric;
+  $('sTempF').checked = !!s.temp_is_fahrenheit;
+  $('sClock24').checked = !!s.clock_24_hour;
+  setSelect('sVol', s.master_volume ?? 3);
+  setSelect('sEye', s.eye_color ?? 0);
+  $('sBtnWake').checked = !!Number(s.button_wakeword || 0);
+  st.textContent = '已读取 · ' + (r.source==='robot'?'来自机器人':'来自缓存') + ' · 版本 ' + (r.version||0);
+}
+async function saveSettings(){
+  const st = $('sState');
+  const settings = {
+    clock_24_hour: $('sClock24').checked,
+    dist_is_metric: $('sMetric').checked,
+    temp_is_fahrenheit: $('sTempF').checked,
+    time_zone: $('sTz').value,
+    locale: $('sLocale').value,
+    default_location: $('sLoc').value.trim(),
+    master_volume: Number($('sVol').value),
+    eye_color: Number($('sEye').value),
+    button_wakeword: $('sBtnWake').checked ? 1 : 0
+  };
+  st.textContent = '保存中…';
+  const r = await post('/api/settings', { settings });
+  if(!r || r.ok===false){ st.textContent = '保存失败：' + ((r&&r.error)||'未知'); toast('保存失败'); return; }
+  if(r.accepted){ toast('已保存'); st.textContent = '已写入机器人 · 版本 ' + (r.version||0); setTimeout(loadSettings, 800); }
+  else { st.textContent = '机器人拒绝：' + (r.code||'未知'); toast('机器人拒绝'); }
+}
+if($('sSave')) $('sSave').onclick = saveSettings;
+if($('sReload')) $('sReload').onclick = loadSettings;
+
+// ---- 系统与日志 ----
+function fmtDur(sec){
+  sec = Math.max(0, Math.round(sec||0));
+  if(sec >= 3600) return Math.floor(sec/3600)+' 小时 '+Math.floor(sec%3600/60)+' 分';
+  if(sec >= 60) return Math.floor(sec/60)+' 分 '+(sec%60)+' 秒';
+  return sec+' 秒';
+}
+function fmtBytes(n){ n = Number(n||0); return n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1, Math.round(n/1024))+' KB'; }
+function battText(lv){
+  if(lv === undefined || lv === null || lv === '') return '未知';
+  if(typeof lv === 'number') return lv + '%';
+  const m = {FULL:'满电', NOMINAL:'电量正常', MEDIUM:'中等', LOW:'低电', UNKNOWN:'未知'};
+  const key = String(lv).replace(/^BATTERY_LEVEL_/, '').toUpperCase();
+  return m[key] || (String(lv).startsWith('BATTERY_LEVEL_') ? '电量正常' : String(lv));
+}
+async function loadSystemInfo(){
+  const box = $('sysInfo'); if(!box) return;
+  try{
+    const r = await api('/api/system/info');
+    const b = r.robot && r.robot.battery;
+    const rows = [
+      '机器人：' + (r.robot&&r.robot.connected ? '在线 · '+(r.robot.version||'') : '未连接'),
+      '电量：' + (b ? battText(b.level)+(b.charging?'（充电中）':'') : '未知'),
+      'pod 已运行：' + fmtDur(r.uptimeSec) + '（pid ' + r.pid + '）',
+      '守护进程：' + (r.watchdog ? '在跑（pid '+r.watchdog+'）' : '没在跑，崩了不会自己起来'),
+      '访问地址：' + r.url + (r.pinRequired ? (r.pin ? ' · PIN ' + r.pin : ' · 局域网需要 PIN') : ''),
+      '今天记录：' + (r.activityToday||0) + ' 条',
+      '日志大小：pod ' + fmtBytes(r.logs&&r.logs.pod&&r.logs.pod.bytes) + ' · 守护 ' + fmtBytes(r.logs&&r.logs.keepalive&&r.logs.keepalive.bytes)
+    ];
+    box.textContent = rows.join('\n');
+  }catch(e){ box.textContent = '读取失败：' + e.message; }
+}
+async function showLog(name){
+  const box = $('sysLog'); if(!box) return;
+  box.textContent = '读取中…';
+  try{
+    const r = await api('/api/system/log?name='+encodeURIComponent(name)+'&lines=200');
+    box.textContent = (r.lines && r.lines.length) ? r.lines.join('\n') : '(还没有日志)';
+    box.scrollTop = box.scrollHeight;
+  }catch(e){ box.textContent = '读取失败：' + e.message; }
+}
+async function restartPod(){
+  if(!confirm('重启 pod？机器人会掉线几秒，然后自动回来。')) return;
+  try{
+    await post('/api/system/restart', {});
+    toast('正在重启，等十秒左右…');
+    setTimeout(loadSystemInfo, 6000);
+    setTimeout(loadSystemInfo, 12000);
+  }catch(e){ toast('重启失败：' + e.message); }
+}
+let quitArm = 0;
+async function quitPod(){
+  const btn = $('sysQuit'); if(!btn) return;
+  if(!quitArm){
+    quitArm = Date.now(); btn.textContent = '再点一次就退出';
+    setTimeout(()=>{ quitArm = 0; btn.textContent = '完全退出'; }, 4000);
+    return;
+  }
+  quitArm = 0; btn.textContent = '完全退出';
+  if(!confirm('完全退出？机器人会失去连接，控制台也会关掉，下次要手动再打开。')) return;
+  try{
+    await post('/api/system/shutdown', {});
+    toast('已经退了，想再打开就双击桌面上的「VectorPal」');
+    setTimeout(()=>{ document.body.innerHTML = '<div style="padding:60px;font-family:system-ui;color:#cfd8e3;background:#0f141b;height:100vh">VectorPal 已经关了。想再打开就双击桌面上的「VectorPal」。</div>'; }, 1200);
+  }catch(e){ toast('退出失败：' + e.message); }
+}
+if($('sysLogPod')) $('sysLogPod').onclick = ()=>showLog('pod');
+if($('sysLogWd')) $('sysLogWd').onclick = ()=>showLog('keepalive');
+if($('sysRestart')) $('sysRestart').onclick = restartPod;
+if($('sysQuit')) $('sysQuit').onclick = quitPod;
+if($('sysWizard')) $('sysWizard').onclick = ()=>{ try{ localStorage.removeItem('vp_onboarded'); }catch(e){} wizOpen(); };
+
+// ---- 新手引导 ----
+let wizStep = 1;
+function wizRender(){
+  document.querySelectorAll('.wstep').forEach(s=>{ s.style.display = Number(s.dataset.step)===wizStep ? '' : 'none'; });
+  document.querySelectorAll('.wsteps span').forEach((s,i)=>s.classList.toggle('on', i < wizStep));
+  $('wizPrev').style.visibility = wizStep===1 ? 'hidden' : 'visible';
+  $('wizNext').textContent = wizStep===4 ? '开始玩' : '下一步';
+  if(wizStep===2) wizStatus();
+  if(wizStep===4) wizPinText();
+}
+function wizOpen(){ wizStep = 1; $('wizard').style.display = 'flex'; wizRender(); }
+function wizClose(){ $('wizard').style.display = 'none'; try{ localStorage.setItem('vp_onboarded','1'); }catch(e){} }
+function wizNext(){ if(wizStep>=4) return wizClose(); wizStep++; wizRender(); }
+function wizPrev(){ if(wizStep<=1) return; wizStep--; wizRender(); }
+async function wizStatus(){
+  const box = $('wizStatus'); if(!box) return;
+  box.textContent = '读取中…';
+  try{
+    const r = await api('/api/status');
+    const rob = r.robot || {};
+    const b = rob.battery;
+    box.textContent = (rob.connected ? '✅ 机器人已经连上了\n' : '❌ 还没连上\n') +
+      'ESN：' + (rob.info ? rob.info.esn : '—') + '\n' +
+      '电量：' + (b ? battText(b.level)+(b.charging?'（充电中）':'') : '—') + '\n' +
+      '系统版本：' + (rob.version ? rob.version.os : '—');
+  }catch(e){ box.textContent = '读取失败：' + e.message; }
+}
+async function wizSpeak(){
+  const t = ($('wizSay').value || '').trim();
+  const st = $('wizSayState');
+  if(!t) return;
+  st.textContent = '正在说…（要几秒）';
+  try{
+    const r = await post('/api/robot/speak', { text: t });
+    st.textContent = r && r.ok ? '说完啦，听到了吗？' : ('失败：' + ((r&&r.error)||'未知'));
+  }catch(e){ st.textContent = '失败：' + e.message; }
+}
+async function wizPinText(){
+  const box = $('wizPin'); if(!box) return;
+  try{
+    const r = await api('/api/system/info');
+    box.textContent = r.pinRequired
+      ? '平板或手机连同一个 Wi-Fi，打开 ' + r.url + ' ，第一次会问 PIN：' + (r.pin || '（在 data/api-pin.txt 里）')
+      : '现在只有这台电脑能打开控制台；想让平板也能用，把 config.json 里的 apiHost 改成 0.0.0.0 再重启 pod。';
+  }catch(e){ box.textContent = ''; }
+}
+const PAGE_OF = { say:'play', anim:'play', eye:'play', cam:'play', voice:'play', lab:'code', prog:'code', blocks:'code', home:'home', rec:'rec', set:'set' };
+function wizGo(tab){ wizClose(); showPage(TABS[tab] ? tab : (PAGE_OF[tab] || 'home')); }
+if($('wizNext')) $('wizNext').onclick = wizNext;
+if($('wizPrev')) $('wizPrev').onclick = wizPrev;
+if($('wizSkip')) $('wizSkip').onclick = wizClose;
+if($('wizRefresh')) $('wizRefresh').onclick = wizStatus;
+if($('wizSpeak')) $('wizSpeak').onclick = wizSpeak;
+if($('wizGoRec')) $('wizGoRec').onclick = ()=>wizGo('rec');
+if($('wizGoBlocks')) $('wizGoBlocks').onclick = ()=>wizGo('blocks');
+if($('wizGoVoice')) $('wizGoVoice').onclick = ()=>wizGo('voice');
+
+
+async function rpcCall(){
+  const method=$('rpcMethod').value.trim();
+  let req={}; try{ req=JSON.parse($('rpcReq').value||'{}'); }catch{ return toast('参数不是合法 JSON'); }
+  $('rpcOut').textContent='调用中…';
+  const r = await post('/api/robot/rpc',{method,req,timeoutMs:15000});
+  $('rpcOut').textContent = JSON.stringify(r.result ?? r, null, 2);
+}
+
+
+// ---- voice ----
+let vState = null;
+async function loadVoice(){
+  const vStateR = await api('/api/voice/state');
+  if(!vStateR || vStateR.error) return;
+  vState = vStateR;
+  $('vStt').textContent = vState.sttReady ? '识别引擎：就绪' : '识别引擎：未就绪（缺模型）';
+  $('vToggle').textContent = vState.enabled ? '已开启' : '已关闭';
+  $('vToggle').className = 'btn ' + (vState.enabled ? 'primary' : '');
+  const t = vState.lastHeard;
+  if(t) $('vLast').textContent = '最近听到：「' + (t.text||'（没听清）') + '」' + (t.matched ? ' → ' + t.matched : ' → 没有匹配');
+  renderTriggers(vState.triggers||[]);
+}
+function renderTriggers(list){
+  const box = $('vTriggers');
+  if(!list.length){ box.innerHTML = '<div class="empty">还没有指令</div>'; return; }
+  box.innerHTML = list.map(t=>{
+    const what = t.steps.map(s=>{
+      if(s.type==='say') return '说"'+s.text+'"';
+      if(s.type==='anim') return '动画 '+(s.name||'').replace('anim_','');
+      if(s.type==='eye') return '换色';
+      if(s.type==='forward') return '前进'+s.mm+'mm';
+      if(s.type==='back') return '后退'+s.mm+'mm';
+      if(s.type==='turn') return '转'+s.deg+'°';
+      if(s.type==='stop') return '停下';
+      if(s.type==='intent') return '意图 '+(s.name||'').replace('intent_','');
+      return s.type;
+    }).join(' + ');
+    const del = t.builtin ? '' : ' <button class="btn ghost" style="padding:3px 9px;font-size:12px" onclick="delTrigger(\''+t.id+'\')">删除</button>';
+    return '<div><b style="color:var(--fg)">「'+t.phrase+'」</b> → '+what+del+(t.enabled?'':' <span class="muted">（已停用）</span>')+'</div>';
+  }).join('');
+}
+async function delTrigger(id){
+  const r = await post('/api/voice/trigger',{op:'remove',id});
+  if(r && r.ok) loadVoice(); else toast('删除失败');
+}
+async function addTrigger(){
+  const phrase = $('vPhrase').value.trim();
+  const kind = $('vAction').value;
+  const arg = $('vArg').value.trim();
+  if(!phrase) return toast('先写一句孩子会说的话');
+  let step;
+  if(kind==='say') step = {type:'say', text: arg || phrase};
+  else if(kind==='anim') step = {type:'anim', name: arg || 'anim_greeting_happy_03'};
+  else if(kind==='eye'){ const m={红:0,绿:0.33,蓝:0.58,黄:0.14,紫:0.78,青:0.5}; step={type:'eye',hue:m[arg]??0.33,saturation:1,light:0.5}; }
+  else if(kind==='forward') step = {type:'forward', mm: Number(arg)||200};
+  else if(kind==='back') step = {type:'back', mm: Number(arg)||200};
+  else if(kind==='turn') step = {type:'turn', deg: Number(arg)||360};
+  else if(kind==='stop') step = {type:'stop'};
+  else if(kind==='intent') step = {type:'intent', name: arg || 'intent_imperative_lookatme'};
+  const r = await post('/api/voice/trigger',{op:'add', phrase, steps:[step]});
+  if(r && r.trigger){ toast('已添加'); $('vPhrase').value=''; $('vArg').value=''; loadVoice(); }
+  else toast('添加失败：' + (r && r.error ? r.error : '未知'));
+}
+async function testVoice(){
+  const text = $('vTest').value.trim(); if(!text) return toast('先写一句话');
+  const r = await post('/api/voice/test',{text});
+  if(r && r.text !== undefined) toast(r.matched ? ('匹配到「'+r.matched+'」') : '没有匹配到指令');
+  loadVoice();
+}
+
+// ---- 记录（家长看得懂的互动轨迹）----
+const REC_ICON = {voice:'🎤',say:'🔊',program:'🧩',anim:'🕺',touch:'👆',pickedUp:'🤲',charger:'🔌',button:'🔘',cliff:'⚠️',boot:'🚀',shutdown:'💤',photo:'📷'};
+let recDate = '';
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function recToday(){ return ymd(new Date()); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function loadRecDays(){
+  const r = await api('/api/activity/summary?days=7');
+  const list = (r && r.summary) || [];
+  const box = $('recDays'); if(!box) return;
+  if(!list.length){ box.innerHTML = '<div class="empty">最近还没有记录，先跟它玩一会儿吧</div>'; $('recSum').textContent=''; return; }
+  const max = Math.max(1, ...list.map(x=>x.count));
+  box.innerHTML = list.map(x=>{
+    const p = x.date.split('-');
+    const last = x.last ? x.last.slice(11,16) : '';
+    return '<div class="rec-day'+(x.date===recDate?' sel':'')+'" data-date="'+x.date+'">'+
+      '<div class="d">'+Number(p[1])+'月'+Number(p[2])+'日</div>'+
+      '<div class="bar"><i style="width:'+Math.max(3,Math.round(x.count/max*100))+'%"></i></div>'+
+      '<div class="n">'+x.count+'<small style="font-size:11px;color:var(--dim)"> 条</small></div>'+
+      '<div class="d">'+(last?('到 '+last):'—')+'</div></div>';
+  }).join('');
+  box.querySelectorAll('.rec-day').forEach(el=>el.onclick=()=>{
+    recDate = el.dataset.date; loadRecDays(); loadRecDay();
+  });
+  const total = list.reduce((a,b)=>a+b.count,0);
+  const active = list.filter(x=>x.count>0).length;
+  $('recSum').textContent = '最近 '+list.length+' 天一共 '+total+' 条互动，有动静的 '+active+' 天';
+}
+async function loadRecDay(){
+  if(!recDate) recDate = recToday();
+  $('recDate').textContent = recDate + (recDate===recToday() ? '（今天）' : '');
+  const r = await api('/api/activity?date='+recDate+'&limit=800');
+  const items = ((r && r.items) || []).slice().reverse();
+  const box = $('recList'); if(!box) return;
+  if(!items.length) box.innerHTML = '<div class="empty">这一天还没有记录</div>';
+  else box.innerHTML = items.map(it=>
+    '<div class="rec-item"><div class="t">'+esc((it.ts||'').slice(11,16))+'</div><div class="x">'+
+    (REC_ICON[it.kind]||'•')+' '+esc(it.title||'')+'</div></div>').join('');
+  $('recState').textContent = '共 '+items.length+' 条';
+}
+function loadRec(){ loadRecDays(); loadRecDay(); }
+if($('recPrev')) $('recPrev').onclick = ()=>{ const d=new Date(recDate+'T12:00:00'); d.setDate(d.getDate()-1); recDate=ymd(d); loadRecDays(); loadRecDay(); };
+if($('recNext')) $('recNext').onclick = ()=>{ const d=new Date(recDate+'T12:00:00'); d.setDate(d.getDate()+1); recDate=ymd(d); loadRecDays(); loadRecDay(); };
+if($('recToday')) $('recToday').onclick = ()=>{ recDate=recToday(); loadRecDays(); loadRecDay(); };
+if($('recReload')) $('recReload').onclick = ()=>loadRec();
+
+// boot
+if($('vToggle')) $('vToggle').onclick = async ()=>{ await post('/api/voice/enabled',{enabled: !(vState && vState.enabled)}); loadVoice(); };
+if($('vTestBtn')) $('vTestBtn').onclick = testVoice;
+if($('vAdd')) $('vAdd').onclick = addTrigger;
+eyeChanged(); loadEyePresets(); loadStepBtns(); renderSteps(); loadIntents();
+loadVoices(); loadAnims(); loadInfo(); loadVoice(); connect();
+setInterval(()=>{ if(state) setRobotOnline(Date.now() - (state.ts||0) < 8000); }, 3000);
+setInterval(checkCloud, 15000);
+setTimeout(checkCloud, 1500);
+try{ if(!localStorage.getItem('vp_onboarded')) setTimeout(wizOpen, 700); }catch(e){}
+setInterval(loadInfo, 10000);
+setInterval(()=>{ if($('rec') && $('rec').classList.contains('active')) loadRec(); }, 15000);
+// ---- 接入机器人（配对）-----------------------------------------------
+let pairTimer = null;
+async function loadPairRobots(){
+  try{
+    const r = await api('/api/pair/robots');
+    const box = $('pairRobots');
+    if(!box) return;
+    const list = (r && r.robots) || [];
+    if(!list.length){ box.innerHTML = '<span style="color:#f5b942">还没有接入任何机器人</span>'; return; }
+    box.innerHTML = list.map(x=>
+      '<div>'+(x.paired?'已接入 ':'未发钥匙 ')+'ESN <b>'+x.esn+'</b> · '+x.ip+(x.paired?'':'（它来要令牌时会自动发）')+'</div>'
+    ).join('');
+  }catch(e){}
+}
+async function pairStart(){
+  const ip = $('pairIp').value.trim();
+  if(!ip) return toast('先填机器人的局域网 IP');
+  const f = ($('pairKeyFile').files||[])[0];
+  const body = { ip };
+  if(f){ try{ body.key = await f.text(); }catch(e){ return toast('读密钥文件失败：'+e.message); } }
+  const r = await post('/api/pair/ssh', body);
+  if(!r || !r.ok){ toast((r && r.error) || '启动失败'); return; }
+  $('pairLog').style.display = 'block';
+  $('pairLog').textContent = '开始……';
+  if(pairTimer) clearInterval(pairTimer);
+  pairTimer = setInterval(pairPoll, 900);
+  pairPoll();
+}
+async function pairPoll(){
+  let s = null;
+  try{ s = await api('/api/pair/status'); }catch(e){ return; }
+  if(!s) return;
+  $('pairStep').textContent = s.step + (s.done ? '（完成）' : '');
+  if(s.log && s.log.length){
+    $('pairLog').style.display = 'block';
+    $('pairLog').textContent = s.log.join('\n');
+    $('pairLog').scrollTop = 1e9;
+  }
+  if(!s.running){
+    if(pairTimer){ clearInterval(pairTimer); pairTimer = null; }
+    loadPairRobots();
+    if(s.error) toast('接入失败：' + s.error);
+    else if(s.done) toast('已下发配置，等它自己连回来');
+  }
+}
+if($('pairGo')) $('pairGo').onclick = pairStart;
+</script>
+<script src="/vendor/blockly/blockly.min.js"></script>
+<script src="/vendor/blockly/zh-hans.js"></script>
+<script src="/blocks.js"></script>
+</body>
+</html>
